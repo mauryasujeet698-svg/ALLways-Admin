@@ -1,2 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-void main(){test('basic',(){expect(1,1);});}
+import 'package:allways_admin/main.dart';
+
+void main() {
+  testWidgets('Admin login renders', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: AdminLoginPage()),
+    );
+    await tester.pump();
+    expect(find.text('ALLways Admin'), findsOneWidget);
+  });
+}
