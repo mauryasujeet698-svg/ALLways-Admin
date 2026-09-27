@@ -5,6 +5,7 @@ plugins {
   id("com.google.gms.google-services")
   id("com.google.gms.google-services")
   id("com.google.gms.google-services")
+  id("com.google.gms.google-services")
   id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -34,7 +35,7 @@ android {
     }
 
     buildTypes {
-        release { signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug")
+        release { signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug") signingConfig = signingConfigs.getByName("debug")
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
