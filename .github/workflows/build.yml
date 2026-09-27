@@ -16,28 +16,40 @@ jobs:
           channel: stable
           cache: true
       - name: Bootstrap Android project
+        shell: bash
         run: |
-          if [ ! -f android/app/build.gradle.kts ]; then flutter create --platforms=android --org com.allways --project-name admin .; fi
+          if [ ! -f android/app/build.gradle.kts ]; then
+            flutter create --platforms=android --org com.allways --project-name admin .
+          fi
           python3 - <<'PY'
           from pathlib import Path
-          p=Path("android/settings.gradle.kts")
-          s=p.read_text()
-          s=s.replace('id("dev.flutter.flutter-plugin-loader") version "1.0.0"', 'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n  id("com.google.gms.google-services") version "4.5.0" apply false')
+          import re
+
+          p = Path("android/settings.gradle.kts")
+          s = p.read_text()
+          s = re.sub(r'\s*id\("com\.google\.gms\.google-services"\).*?\n', '\n', s)
+          s = s.replace('plugins {', 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false', 1)
           p.write_text(s)
-          p=Path("android/app/build.gradle.kts")
-          s=p.read_text()
-          s=s.replace('id("dev.flutter.flutter-gradle-plugin")','id("com.google.gms.google-services")\n  id("dev.flutter.flutter-gradle-plugin")')
-          if 'namespace = "com.allways.admin"' not in s:
-            s=s.replace('android {','android {\n    namespace = "com.allways.admin"',1)
-          s=s.replace('applicationId = "com.allways.admin"', 'applicationId = "com.allways.admin"')
-          s=s.replace('release {', 'release { signingConfig = signingConfigs.getByName("debug")',1)
+
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+          s = re.sub(r'\s*id\("com\.google\.gms\.google-services"\)\s*\n', '\n', s)
+          s = s.replace('plugins {', 'plugins {\n    id("com.google.gms.google-services")', 1)
+          s = re.sub(r'buildTypes\s*\{.*?\n\s*\}', '''buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }''', s, count=1, flags=re.S)
+          s = re.sub(r'namespace = "[^"]+"', 'namespace = "com.allways.admin"', s, count=1)
+          s = re.sub(r'applicationId = "[^"]+"', 'applicationId = "com.allways.admin"', s, count=1)
           p.write_text(s)
-          p=Path("android/app/src/main/AndroidManifest.xml")
-          s=p.read_text()
-          s=s.replace('<manifest ', '<manifest\n    ')
+
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          s = s.replace('android:label="admin"', 'android:label="ALLways Admin"')
           if 'POST_NOTIFICATIONS' not in s:
-            s=s.replace('<manifest\n    xmlns:android=', '<manifest xmlns:android=', 1).replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',1)
-          s=s.replace('android:label="admin"', 'android:label="ALLways Admin"')
+              s = s.replace('<manifest', '<manifest', 1)
+              s = s.replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>', 1)
           p.write_text(s)
           PY
           git config user.name "github-actions[bot]"
