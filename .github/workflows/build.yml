@@ -1,71 +1,47 @@
 name: ALLways Admin Android
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-      - name: Bootstrap Android project
-        shell: bash
-        run: |
-          if [ ! -f android/app/build.gradle.kts ]; then
-            flutter create --platforms=android --org com.allways --project-name admin .
-          fi
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
 
-          p = Path("android/settings.gradle.kts")
-          s = p.read_text()
-          s = re.sub(r'\s*id\("com\.google\.gms\.google-services"\).*?\n', '\n', s)
-          s = s.replace('plugins {', 'plugins {\n    id("com.google.gms.google-services") version "4.5.0" apply false', 1)
-          p.write_text(s)
+      - name: Flutter pub get
+        run: flutter pub get
 
-          p = Path("android/app/build.gradle.kts")
-          s = p.read_text()
-          s = re.sub(r'\s*id\("com\.google\.gms\.google-services"\)\s*\n', '\n', s)
-          s = s.replace('plugins {', 'plugins {\n    id("com.google.gms.google-services")', 1)
-          s = re.sub(r'buildTypes\s*\{.*?\n\s*\}', '''buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }''', s, count=1, flags=re.S)
-          s = re.sub(r'namespace = "[^"]+"', 'namespace = "com.allways.admin"', s, count=1)
-          s = re.sub(r'applicationId = "[^"]+"', 'applicationId = "com.allways.admin"', s, count=1)
-          p.write_text(s)
+      - name: Analyze
+        run: flutter analyze
 
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text()
-          s = s.replace('android:label="admin"', 'android:label="ALLways Admin"')
-          if 'POST_NOTIFICATIONS' not in s:
-              s = s.replace('<manifest', '<manifest', 1)
-              s = s.replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>', 1)
-          p.write_text(s)
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add android .metadata
-          if ! git diff --cached --quiet; then git commit -m "Bootstrap Android project [skip ci]" && git push; fi
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - name: Test
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: allways-admin-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
+
       - name: Android runtime smoke test
         continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
