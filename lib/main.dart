@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'role_dashboard_screen.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
@@ -10,6 +11,7 @@ const adminEmail = 'mauryasujeet698@gmail.com';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  await GoogleSignIn.instance.initialize();
 }
 
 Future<void> main() async {
@@ -94,6 +96,31 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     if (mounted) setState(() => busy = false);
   }
 
+  Future<void> signInWithGoogle() async {
+    setState(() { busy = true; error = null; });
+    try {
+      if (!GoogleSignIn.instance.supportsAuthenticate()) {
+        throw Exception('Google Sign-In is not supported on this device.');
+      }
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Google Sign-In did not return an ID token.');
+      }
+      await FirebaseAuth.instance.signInWithCredential(
+        GoogleAuthProvider.credential(idToken: idToken),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => error = e.message ?? e.code);
+    } on GoogleSignInException catch (e) {
+      if (mounted) setState(() => error = e.description ?? e.code.toString());
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    }
+    if (mounted) setState(() => busy = false);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
@@ -148,6 +175,23 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                       child: FilledButton(
                         onPressed: busy ? null : submit,
                         child: busy ? const CircularProgressIndicator() : const Text('Sign in'),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Row(children: [
+                        Expanded(child: Divider()),
+                        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('OR')),
+                        Expanded(child: Divider()),
+                      ]),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: busy ? null : signInWithGoogle,
+                        icon: const Icon(Icons.account_circle_outlined),
+                        label: const Text('Sign in with Google'),
                       ),
                     ),
                   ],
