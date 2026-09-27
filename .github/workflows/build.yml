@@ -1,0 +1,69 @@
+name: ALLways Admin Android
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Bootstrap Android project
+        run: |
+          if [ ! -f android/app/build.gradle.kts ]; then flutter create --platforms=android --org com.allways --project-name admin .; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/settings.gradle.kts")
+          s=p.read_text()
+          s=s.replace('id("dev.flutter.flutter-plugin-loader") version "1.0.0"', 'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n  id("com.google.gms.google-services") version "4.5.0" apply false')
+          p.write_text(s)
+          p=Path("android/app/build.gradle.kts")
+          s=p.read_text()
+          s=s.replace('id("dev.flutter.flutter-gradle-plugin")','id("com.google.gms.google-services")\n  id("dev.flutter.flutter-gradle-plugin")')
+          if 'namespace = "com.allways.admin"' not in s:
+            s=s.replace('android {','android {\n    namespace = "com.allways.admin"',1)
+          s=s.replace('applicationId = "com.allways.admin"', 'applicationId = "com.allways.admin"')
+          s=s.replace('release {', 'release { signingConfig = signingConfigs.getByName("debug")',1)
+          p.write_text(s)
+          p=Path("android/app/src/main/AndroidManifest.xml")
+          s=p.read_text()
+          s=s.replace('<manifest ', '<manifest\n    ')
+          if 'POST_NOTIFICATIONS' not in s:
+            s=s.replace('<manifest\n    xmlns:android=', '<manifest xmlns:android=', 1).replace('>', '>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',1)
+          s=s.replace('android:label="admin"', 'android:label="ALLways Admin"')
+          p.write_text(s)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android .metadata
+          if ! git diff --cached --quiet; then git commit -m "Bootstrap Android project [skip ci]" && git push; fi
+      - run: flutter pub get
+      - run: flutter analyze --fatal-infos
+      - run: flutter test
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: allways-admin-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Android runtime smoke test
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          cores: 4
+          disable-animations: true
+          script: |
+            adb install -r build/app/outputs/flutter-apk/app-release.apk
+            timeout 90s adb shell am start -S -W -n com.allways.admin/.MainActivity
+            adb shell pidof com.allways.admin
