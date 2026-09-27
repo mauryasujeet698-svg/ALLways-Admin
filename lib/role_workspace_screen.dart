@@ -330,7 +330,6 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
           final type=(o['rideType']??'bike').toString().toLowerCase();
           if(type!=vehicle)continue;
           final lat=_num(o['pickupLatitude']),lng=_num(o['pickupLongitude']);
-          if(lat==null||lng==null)continue;
           final km=Geolocator.distanceBetween(position!.latitude,position!.longitude,lat,lng)/1000;
           if(km<=radiusKm){distances[d.id]=km;list.add(d);}
         }
