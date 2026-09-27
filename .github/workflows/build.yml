@@ -33,11 +33,11 @@ jobs:
           KEY_ALIAS="$(keytool -list -v -keystore android/app/allways-release.jks -storepass "$ALLWAYS_KEYSTORE_PASSWORD" | awk -F': ' '/^Alias name:/{print $2; exit}')"
           test -n "$KEY_ALIAS"
           cat > android/key.properties <<EOF
-storeFile=app/allways-release.jks
-storePassword=$ALLWAYS_KEYSTORE_PASSWORD
-keyPassword=$ALLWAYS_KEY_PASSWORD
-keyAlias=$KEY_ALIAS
-EOF
+          storeFile=app/allways-release.jks
+          storePassword=$ALLWAYS_KEYSTORE_PASSWORD
+          keyPassword=$ALLWAYS_KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          EOF
       - name: Flutter pub get
         run: flutter pub get
 
