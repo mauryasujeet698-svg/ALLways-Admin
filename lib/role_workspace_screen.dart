@@ -393,7 +393,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         tx.update(d.reference,{'status':'accepted','driverUid':widget.user.uid,'driverName':profile['name']??widget.user.displayName??'ALLways Rider','driverPhone':profile['mobileNumber']??widget.user.phoneNumber??'','driverVehicleType':normalized,'acceptedAt':FieldValue.serverTimestamp(),'updatedAt':FieldValue.serverTimestamp()});
         tx.set(p.reference,{'status':'offline','availableForRides':false,'activeRideId':d.id,'statusUpdatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       });
-      if(mounted){setState(()=>online=false);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Ride accepted. Open My Rides for tracking and completion.')));}
+      if(context.mounted){setState(()=>online=false);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Ride accepted. Open My Rides for tracking and completion.')));}
     }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
   }
   double _num(dynamic v)=>v is num?v.toDouble():double.tryParse((v??'').toString())??0;
