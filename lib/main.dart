@@ -71,9 +71,9 @@ class AllwaysAdminApp extends StatelessWidget {
 class AdminAuthGate extends StatelessWidget {
   const AdminAuthGate({super.key});
   Future<bool> _isAdmin(User user) async {
-    if ((user.email ?? '').trim().toLowerCase() == adminEmail.toLowerCase()) return true;
-    final snap = await FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
-    return (snap.data()?['role'] ?? '').toString().toLowerCase() == 'admin';
+    // Admin access is intentionally allow-listed. A client-editable Firestore role
+    // must never be sufficient to elevate a normal account to Admin.
+    return (user.email ?? '').trim().toLowerCase() == adminEmail.toLowerCase();
   }
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
