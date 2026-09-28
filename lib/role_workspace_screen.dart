@@ -75,17 +75,123 @@ class RoleFeatureScreen extends StatelessWidget {
         if(docs.isEmpty)_empty('Nothing here yet','New work will appear automatically.')
         else ...docs.map((d){
           final o=d.data();final id=(o['id']??d.id).toString();final status=(o['status']??'New Order').toString();
-          return Card(elevation:0,child:ListTile(
-            leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(role=='carrier'?Icons.two_wheeler:Icons.receipt_long,color:accent)),
-            title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
-            subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status),
-            trailing:Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),
-            onTap:()=>Navigator.pushNamed(context,'/order-details',arguments:{'orderId':d.id}),
-          ));
+          final assignedName=(o['carrierName']??'').toString().trim();
+          return Card(
+            elevation:0,
+            child:Padding(
+              padding:const EdgeInsets.all(4),
+              child:ListTile(
+                leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(role=='carrier'?Icons.two_wheeler:Icons.receipt_long,color:accent)),
+                title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
+                subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status+(assignedName.isEmpty?'':' • Assigned: '+assignedName)),
+                trailing:Column(
+                  mainAxisAlignment:MainAxisAlignment.center,
+                  crossAxisAlignment:CrossAxisAlignment.end,
+                  children:[
+                    Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),
+                    if(role=='admin' && status.toLowerCase()!='cancelled' && status.toLowerCase()!='delivered')
+                      TextButton.icon(
+                        onPressed:()=>_assignDeliveryPartner(context,d),
+                        icon:const Icon(Icons.local_shipping_outlined,size:17),
+                        label:Text(assignedName.isEmpty?'Assign':'Reassign'),
+                      ),
+                  ],
+                ),
+                onTap:()=>Navigator.pushNamed(context,'/order-details',arguments:{'orderId':d.id}),
+              ),
+            ),
+          );
         }),
       ]);
     },
   );
+
+  Future<void> _assignDeliveryPartner(BuildContext context,QueryDocumentSnapshot<Map<String,dynamic>> order) async {
+    try{
+      final snap=await FirebaseFirestore.instance.collection('deliveryPartners').get();
+      var partners=snap.docs.where((d){
+        final x=d.data();
+        return (x['approvalStatus']??'').toString().toLowerCase()=='approved';
+      }).toList();
+
+      if(partners.isEmpty){
+        if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content:Text('No approved delivery partners are available yet.')),
+        );
+        return;
+      }
+
+      partners.sort((a,b){
+        final ao=(a.data()['status']??a.data()['dutyStatus']??'offline').toString().toLowerCase()=='online';
+        final bo=(b.data()['status']??b.data()['dutyStatus']??'offline').toString().toLowerCase()=='online';
+        return bo==ao ? 0 : (bo ? 1 : -1);
+      });
+
+      final chosen=await showDialog<QueryDocumentSnapshot<Map<String,dynamic>>>(
+        context:context,
+        builder:(dialogContext)=>AlertDialog(
+          title:Text((order.data()['carrierUid']??'').toString().isEmpty
+              ? 'Assign delivery partner'
+              : 'Reassign delivery partner'),
+          content:SizedBox(
+            width:420,
+            child:ListView(
+              shrinkWrap:true,
+              children:partners.map((d){
+                final x=d.data();
+                final name=(x['name']??x['displayName']??x['email']??d.id).toString();
+                final status=(x['status']??x['dutyStatus']??'offline').toString();
+                final vehicle=(x['vehicleType']??'bike').toString();
+                return ListTile(
+                  leading:const CircleAvatar(child:Icon(Icons.local_shipping_outlined)),
+                  title:Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
+                  subtitle:Text(status+' • '+vehicle+' • '+(x['phone']??x['mobileNumber']??'').toString()),
+                  trailing:const Icon(Icons.chevron_right),
+                  onTap:()=>Navigator.pop(dialogContext,d),
+                );
+              }).toList(),
+            ),
+          ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),
+          ],
+        ),
+      );
+      if(chosen==null)return;
+
+      final p=chosen.data();
+      final uid=chosen.id;
+      final name=(p['name']??p['displayName']??p['email']??uid).toString();
+      final phone=(p['phone']??p['mobileNumber']??'').toString();
+      final vehicle=(p['vehicleType']??'bike').toString();
+
+      await order.reference.update({
+        'carrierUid':uid,
+        'deliveryPartnerUid':uid,
+        'assignedPartnerId':uid,
+        'carrierName':name,
+        'carrierPhone':phone,
+        'carrierVehicleType':vehicle,
+        'carrierAccepted':true,
+        'assignmentRejected':false,
+        'assignmentMethod':'admin',
+        'assignedBy':user.uid,
+        'assignedAt':FieldValue.serverTimestamp(),
+        'status':'Assigned',
+        'statusNote':'Delivery partner assigned',
+        'customerMessage':'A delivery partner has been assigned to your order.',
+        'updatedAt':FieldValue.serverTimestamp(),
+      });
+
+      if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('Order assigned to '+name+'.')),
+      );
+    }catch(e){
+      if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content:Text('Assignment failed: '+e.toString())),
+      );
+    }
+  }
 
   Widget _requests(BuildContext context,bool delivery)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
     stream:FirebaseFirestore.instance.collection(delivery?'orders':'autoRideRequests').snapshots(),
