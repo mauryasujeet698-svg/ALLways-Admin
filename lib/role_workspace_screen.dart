@@ -277,9 +277,9 @@ class RoleFeatureScreen extends StatelessWidget {
         content: SingleChildScrollView(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Status: $status'),
-            Text('Mobile: \${(x['mobileNumber'] ?? x['phone'] ?? 'Not provided').toString()}'),
-            Text('Address: \${(x['address'] ?? 'Not provided').toString()}'),
-            Text('Vehicle: \${(x['vehicleType'] ?? 'Not provided').toString()} • \${(x['vehicleNumber'] ?? 'Not provided').toString()}'),
+            Text('Mobile: ${(x['mobileNumber'] ?? x['phone'] ?? 'Not provided').toString()}'),
+            Text('Address: ${(x['address'] ?? 'Not provided').toString()}'),
+            Text('Vehicle: ${(x['vehicleType'] ?? 'Not provided').toString()} • ${(x['vehicleNumber'] ?? 'Not provided').toString()}'),
             const SizedBox(height: 14),
             if ((x['profilePhotoUrl'] ?? '').toString().isNotEmpty) ...[
               const Text('Profile photo', style: TextStyle(fontWeight: FontWeight.w800)),
