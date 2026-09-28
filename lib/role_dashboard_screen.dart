@@ -51,7 +51,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     'admin'=>const[
       _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),
       _Action('Manage Banners',Icons.view_carousel,'Content'),_Action('Homepage & Content',Icons.home_work,'Content'),_Action('Send Notifications',Icons.campaign,'Content'),
-      _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),
+      _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),_Action('Account Settings',Icons.manage_accounts,'Settings'),
     ],
     'delivery_partner'=>const[
       _Action('Delivery Requests',Icons.local_shipping,'Work'),_Action('My Deliveries',Icons.assignment_turned_in,'Work'),_Action('Earnings',Icons.currency_rupee,'Finance'),_Action('Incentives',Icons.card_giftcard,'Finance'),
