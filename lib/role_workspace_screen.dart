@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'account_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'admin_cms_screen.dart';
 
@@ -11,10 +12,9 @@ class RoleFeatureScreen extends StatelessWidget {
   const RoleFeatureScreen({super.key,required this.role,required this.feature,required this.user,required this.accent});
 
   IconData get icon => const {
-    'Manage Sellers':Icons.storefront,'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
+'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
     'Manage Orders':Icons.receipt_long,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
     'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
-    'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
     'Delivery Requests':Icons.local_shipping,'My Deliveries':Icons.assignment_turned_in,'Earnings':Icons.currency_rupee,'Incentives':Icons.card_giftcard,'Performance':Icons.bar_chart,'Documents':Icons.description,'Safety & SOS':Icons.shield,'Help & Support':Icons.support_agent,
     'Ride Requests':Icons.two_wheeler,'My Rides':Icons.route,'Ratings':Icons.star,'Ride History':Icons.history,'Vehicle & Documents':Icons.description,'Profile & Settings':Icons.person,
   }[feature] ?? Icons.dashboard;
@@ -34,10 +34,6 @@ class RoleFeatureScreen extends StatelessWidget {
     if(feature=='Manage Orders'||feature=='Orders'||feature=='My Deliveries'||feature=='My Rides'||feature=='Ride History')return _orders(context);
     if(feature=='Ride Requests')return RideRequestsScreen(user:user,accent:accent);
     if(feature=='Delivery Requests')return _requests(context,true);
-    if(feature=='Products'||feature=='Inventory')return _products(context);
-    if(feature=='Shop Profile')return _shopProfile(context);
-    if(feature=='Offers')return _offers(context);
-    if(feature=='Manage Sellers')return _people('sellers','Seller');
     if(feature=='Manage Carriers')return _people('ridePartners','Rider');
     if(feature=='Manage Delivery Partners')return _people('deliveryPartners','Delivery Partner',roleFilter:'delivery_partner');
     if(feature=='Users & Roles')return _users(context);
@@ -61,7 +57,6 @@ class RoleFeatureScreen extends StatelessWidget {
       if(!snap.hasData)return const Center(child:CircularProgressIndicator());
       var docs=snap.data!.docs.where((d){
         final o=d.data(); final status=(o['status']??'').toString().toLowerCase();
-        if(role=='seller')return (o['sellerId']??o['sellerUid']??'').toString()==user.uid;
         if(role=='delivery_partner'||role=='carrier')return (o['carrierUid']??'').toString()==user.uid;
         if(feature=='Ride History')return status=='completed'||status=='delivered';
         return status!='cancelled';
@@ -78,7 +73,7 @@ class RoleFeatureScreen extends StatelessWidget {
             title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
             subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status),
             trailing:Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),
-            onTap:()=>Navigator.pushNamed(context,'/order-details',arguments:{'orderId':d.id}),
+            onTap:()=>Navigator.push(context,MaterialPageRoute(builder: (_) => OrderDetailsPage(orderId: d.id, accent: accent, adminUser: user))),
           ));
         }),
       ]);
@@ -128,68 +123,6 @@ class RoleFeatureScreen extends StatelessWidget {
   Future<void> _reject(QueryDocumentSnapshot<Map<String,dynamic>> d)async{try{await d.reference.update({'rejectedBy':FieldValue.arrayUnion([user.uid]),'updatedAt':FieldValue.serverTimestamp()});}catch(_){}}
   void _details(BuildContext context,Map<String,dynamic> o)=>showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Request details',style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),Text((o['name']??o['customerName']??'Customer').toString()),Text((o['phone']??o['customerPhone']??'').toString()),Text((o['address']??o['pickupAddress']??'').toString()),Text('Fare: ₹'+_num(o['total']??o['estimatedFare']).toStringAsFixed(0))]))));
 
-  Widget _products(BuildContext context)=>StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
-    stream:FirebaseFirestore.instance.collection('sellers').doc(user.uid).snapshots(),
-    builder:(context,snap){
-      if(!snap.hasData)return const Center(child:CircularProgressIndicator());
-      final data=snap.data!.data()??{};final raw=data['items'];final items=raw is List?raw.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList():<Map<String,dynamic>>[];
-      return _page([_hero(feature,'Manage products, pricing and stock in one place.'),const SizedBox(height:12),
-        Row(children:[_metric(items.length.toString(),'Products',Icons.inventory_2),_metric(items.where((x)=>_num(x['stock'])>0).length.toString(),'In stock',Icons.check_circle)]),
-        const SizedBox(height:12),
-        FilledButton.icon(onPressed:()=>_addProduct(context,data),icon:const Icon(Icons.add),label:const Text('Add product')),
-        const SizedBox(height:10),
-        if(items.isEmpty)_empty('No products','Add your first product to start selling.')
-        else ...items.asMap().entries.map((entry){
-          final i=entry.key,x=entry.value;final stock=_num(x['stock']);
-          return Card(elevation:0,child:ListTile(
-            leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(Icons.inventory_2,color:accent)),
-            title:Text((x['name']??'Product').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
-            subtitle:Text('₹'+_num(x['price']).toStringAsFixed(0)+' • Stock '+stock.toStringAsFixed(0)+' • '+(x['category']??'Other').toString()),
-            trailing:PopupMenuButton<String>(onSelected:(v)=>_productAction(v,i,data,items),itemBuilder:(_)=>const[PopupMenuItem(value:'plus',child:Text('Add stock')),PopupMenuItem(value:'minus',child:Text('Remove stock')),PopupMenuItem(value:'delete',child:Text('Delete'))]),
-          ));
-        }),
-      ]);
-    },
-  );
-
-  Future<void> _addProduct(BuildContext context,Map<String,dynamic> data)async{
-    final name=TextEditingController(),price=TextEditingController(),stock=TextEditingController(text:'10'),category=TextEditingController();
-    final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Add product'),content:SingleChildScrollView(child:Column(children:[
-      TextField(controller:name,decoration:const InputDecoration(labelText:'Product name')),TextField(controller:category,decoration:const InputDecoration(labelText:'Category')),
-      TextField(controller:price,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Price')),TextField(controller:stock,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Stock')),
-    ])),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Add'))]));
-    if(ok!=true)return;
-    final item={'id':'seller_'+DateTime.now().millisecondsSinceEpoch.toString(),'name':name.text.trim(),'category':category.text.trim().isEmpty?'Other':category.text.trim(),'price':double.tryParse(price.text.trim())??0,'stock':double.tryParse(stock.text.trim())??0};
-    final items=(data['items'] is List)?List<Map<String,dynamic>>.from((data['items'] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x))):<Map<String,dynamic>>[];
-    items.add(item);
-    await FirebaseFirestore.instance.collection('sellers').doc(user.uid).set({'items':items,'updatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
-  }
-  Future<void> _productAction(String action,int index,Map<String,dynamic> data,List<Map<String,dynamic>> items)async{
-    if(index<0||index>=items.length)return;final x=Map<String,dynamic>.from(items[index]);var stock=_num(x['stock']);
-    if(action=='plus')stock+=1;else if(action=='minus')stock=stock>0?stock-1:0;else if(action=='delete'){items.removeAt(index);await FirebaseFirestore.instance.collection('sellers').doc(user.uid).set({'items':items},SetOptions(merge:true));return;}
-    x['stock']=stock;items[index]=x;await FirebaseFirestore.instance.collection('sellers').doc(user.uid).set({'items':items},SetOptions(merge:true));
-  }
-
-  Widget _shopProfile(BuildContext context)=>StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
-    stream:FirebaseFirestore.instance.collection('sellers').doc(user.uid).snapshots(),
-    builder:(context,snap){final d=snap.data?.data()??{};return _page([_hero('Shop Profile','Control the information customers see.'),const SizedBox(height:12),
-      _editable(context,'Business name',(d['businessName']??d['name']??'').toString(),'businessName'),
-      _editable(context,'Description',(d['description']??'').toString(),'description',maxLines:3),
-      _editable(context,'About',(d['about']??'').toString(),'about',maxLines:4),
-      _editable(context,'Opening hours',(d['openingHours']??'').toString(),'openingHours'),
-      Card(child:SwitchListTile(title:const Text('Shop open now'),value:d['isOpen']==true,onChanged:(v)=>FirebaseFirestore.instance.collection('sellers').doc(user.uid).set({'isOpen':v},SetOptions(merge:true)))),
-    ]);});
-  Widget _editable(BuildContext context,String label,String value,String field,{int maxLines=1})=>Card(elevation:0,child:ListTile(title:Text(label,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text(value.isEmpty?'Not set':value),trailing:const Icon(Icons.edit_outlined),onTap:()async{
-    final c=TextEditingController(text:value);final ok=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:Text('Edit '+label),content:TextField(controller:c,maxLines:maxLines,decoration:InputDecoration(labelText:label)),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Save'))]));if(ok==true)await FirebaseFirestore.instance.collection('sellers').doc(user.uid).set({field:c.text.trim()},SetOptions(merge:true));
-  }));
-
-  Widget _offers(BuildContext context)=>_page([_hero('Offers','Create and review shop offers.'),const SizedBox(height:12),FilledButton.icon(onPressed:()=>_createOffer(context),icon:const Icon(Icons.add),label:const Text('Create offer')),const SizedBox(height:10),
-    StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('sellers').doc(user.uid).collection('offers').orderBy('createdAt',descending:true).snapshots(),builder:(context,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());if(s.data!.docs.isEmpty)return _empty('No offers','Create an offer and it will be saved to your seller account.');return Column(children:s.data!.docs.map((d)=>Card(child:ListTile(title:Text((d.data()['title']??'Offer').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((d.data()['details']??'').toString()),trailing:Switch(value:d.data()['active']!=false,onChanged:(v)=>d.reference.update({'active':v}) )))).toList());})
-  ]);
-  Future<void> _createOffer(BuildContext context)async{
-    final t=TextEditingController(),d=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(c)=>AlertDialog(title:const Text('Create offer'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:t,decoration:const InputDecoration(labelText:'Offer title')),TextField(controller:d,decoration:const InputDecoration(labelText:'Details'))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Create'))]));if(ok==true)await FirebaseFirestore.instance.collection('sellers').doc(user.uid).collection('offers').add({'title':t.text.trim(),'details':d.text.trim(),'active':true,'createdAt':FieldValue.serverTimestamp()});
-  }
-
   Widget _people(String collection,String label,{String? roleFilter}) =>
       StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
         stream: FirebaseFirestore.instance.collection(collection).snapshots(),
@@ -227,10 +160,14 @@ class RoleFeatureScreen extends StatelessWidget {
 
               return Card(
                 child: ListTile(
+                  leading: (x['profilePhotoUrl'] ?? '').toString().isNotEmpty
+                      ? CircleAvatar(backgroundImage: NetworkImage((x['profilePhotoUrl']).toString()))
+                      : const CircleAvatar(child: Icon(Icons.person_outline)),
                   title: Text(name,
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: Text(
                       '$status • ${(x['email'] ?? '').toString()}'),
+                  onTap: partnerCollection ? () => _showPartnerDetails(context, x, name, status) : null,
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (!partnerCollection) {
@@ -333,9 +270,39 @@ class RoleFeatureScreen extends StatelessWidget {
         },
       );
 
+  void _showPartnerDetails(BuildContext context, Map<String,dynamic> x, String name, String status) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
+        content: SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Status: $status'),
+            Text('Mobile: ${(x['mobileNumber'] ?? x['phone'] ?? 'Not provided').toString()}'),
+            Text('Address: ${(x['address'] ?? 'Not provided').toString()}'),
+            Text('Vehicle: ${(x['vehicleType'] ?? 'Not provided').toString()} • ${(x['vehicleNumber'] ?? 'Not provided').toString()}'),
+            const SizedBox(height: 14),
+            if ((x['profilePhotoUrl'] ?? '').toString().isNotEmpty) ...[
+              const Text('Profile photo', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(x['profilePhotoUrl'].toString(), height: 180, width: double.infinity, fit: BoxFit.cover)),
+              const SizedBox(height: 12),
+            ],
+            if ((x['vehiclePhotoUrl'] ?? '').toString().isNotEmpty) ...[
+              const Text('Vehicle photo', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(x['vehiclePhotoUrl'].toString(), height: 180, width: double.infinity, fit: BoxFit.cover)),
+            ],
+          ]),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      ),
+    );
+  }
+
   Widget _metricRow(String v,String l)=>Card(elevation:0,color:accent.withOpacity(.06),child:Padding(padding:const EdgeInsets.all(14),child:Row(children:[Icon(Icons.people_outline,color:accent),const SizedBox(width:10),Text(v,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(width:8),Text(l)])));
 
-  Widget _users(BuildContext context)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('customers').snapshots(),builder:(context,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());final docs=s.data!.docs;return _page([_hero('Users & Roles','Manage access without leaving the app.'),_metricRow(docs.length.toString(),'Accounts'),...docs.map((d){final x=d.data();final role=(x['role']??'customer').toString();return Card(child:ListTile(title:Text((x['displayName']??x['email']??d.id).toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((x['email']??'').toString()),trailing:DropdownButton<String>(value:['customer','seller','delivery_partner','carrier','admin'].contains(role)?role:'customer',items:const['customer','seller','delivery_partner','carrier','admin'].map((r)=>DropdownMenuItem(value:r,child:Text(r))).toList(),onChanged:(v)=>v==null?null:d.reference.update({'role':v}) )));})]);});
+  Widget _users(BuildContext context)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('customers').snapshots(),builder:(context,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());final docs=s.data!.docs;return _page([_hero('Users & Roles','Manage access without leaving the app.'),_metricRow(docs.length.toString(),'Accounts'),...docs.map((d){final x=d.data();final role=(x['role']??'customer').toString();return Card(child:ListTile(title:Text((x['displayName']??x['email']??d.id).toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((x['email']??'').toString()),trailing:DropdownButton<String>(value:['customer','delivery_partner','carrier','admin'].contains(role)?role:'customer',items:const['customer','delivery_partner','carrier','admin'].map((r)=>DropdownMenuItem(value:r,child:Text(r))).toList(),onChanged:(v)=>v==null?null:d.reference.update({'role':v}) )));})]);});
 
   Widget _earnings()=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('orders').where('carrierUid',isEqualTo:user.uid).snapshots(),builder:(context,s){num total=0;int done=0;for(final d in s.data?.docs??const <QueryDocumentSnapshot<Map<String,dynamic>>>[]){if(_isDone(d.data()['status'])){done++;total+=_num(d.data()['deliveryFee']??d.data()['partnerEarning']??d.data()['total']);}}return _page([_hero(feature,'Live earnings from completed work.'),const SizedBox(height:12),Row(children:[_metric('₹'+total.toStringAsFixed(0),'Completed earnings',Icons.currency_rupee),_metric(done.toString(),'Completed',Icons.check_circle)]),const SizedBox(height:12),_empty(done==0?'No completed work':'Earnings updated','Completed deliveries and rides are counted automatically.')]);});
 
@@ -351,7 +318,16 @@ class RoleFeatureScreen extends StatelessWidget {
 
   Widget _announcement(BuildContext context){final title=TextEditingController(),body=TextEditingController();return _page([_hero('Send Notifications','Create an announcement record for ALLways users.'),TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),const SizedBox(height:10),TextField(controller:body,maxLines:4,decoration:const InputDecoration(labelText:'Message')),const SizedBox(height:12),FilledButton.icon(onPressed:()async{if(title.text.trim().isEmpty||body.text.trim().isEmpty)return;await FirebaseFirestore.instance.collection('announcements').add({'title':title.text.trim(),'body':body.text.trim(),'type':'announcement','createdAt':FieldValue.serverTimestamp(),'createdBy':user.uid});if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Announcement saved.')));},icon:const Icon(Icons.campaign),label:const Text('Publish announcement'))]);}
 
-  Widget _account(BuildContext context)=>_page([_hero(feature,'Account controls for this role.'),Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Approved email'),subtitle:Text(user.email??'Not available'))),Card(child:ListTile(leading:const Icon(Icons.logout),title:const Text('Sign out'),onTap:()=>FirebaseAuth.instance.signOut()))]);
+  Widget _account(BuildContext context){
+    if(feature=='Account Settings') return AccountSettingsPage(user:user,collection:'customers',accent:accent,role:role);
+    return _page([
+      _hero(feature,'Account controls for this role.'),
+      Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Approved email'),subtitle:Text(user.email??'Not available'))),
+      Card(child:ListTile(leading:const Icon(Icons.palette_outlined),title:const Text('Change Theme'),subtitle:const Text('Light, dark or system default'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ThemeSettingsPage(accent:accent))))),
+      Card(child:ListTile(leading:const Icon(Icons.logout),title:const Text('Sign out'),onTap:()=>FirebaseAuth.instance.signOut())),
+      Card(child:ListTile(leading:const Icon(Icons.delete_outline,color:Colors.red),title:const Text('Delete Account',style:TextStyle(color:Colors.red)),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AccountSettingsPage(user:user,collection:'customers',accent:accent,role:role))))),
+    ]);
+  }
 
   Widget _empty(String title,String message)=>Card(elevation:0,child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[Icon(icon,color:accent,size:38),const SizedBox(height:10),Text(title,style:const TextStyle(fontWeight:FontWeight.w900)),const SizedBox(height:5),Text(message,textAlign:TextAlign.center,style:const TextStyle(color:Colors.grey))])));
   Widget _error(String message)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Text(message,style:const TextStyle(color:Colors.red))));
@@ -397,10 +373,10 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   Future<void> _toggle(bool value)async{
     try{
       if(value)await _locate();
-      if(value&&position==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Turn on location permission before going online.')));return;}
+      if(value&&position==null){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Turn on location permission before going online.')));return;}
       await FirebaseFirestore.instance.collection('ridePartners').doc(widget.user.uid).set({'status':value?'online':'offline','availableForRides':value,'carrierLat':position?.latitude,'carrierLng':position?.longitude,'statusUpdatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       if(mounted)setState(()=>online=value);
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not change duty status: '+e.toString())));}
+    }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not change duty status: '+e.toString())));}
   }
   Future<void> _reject(QueryDocumentSnapshot<Map<String,dynamic>> d)async{await d.reference.update({'rejectedBy':FieldValue.arrayUnion([widget.user.uid]),'updatedAt':FieldValue.serverTimestamp()});}
   Future<void> _accept(QueryDocumentSnapshot<Map<String,dynamic>> d)async{
@@ -417,8 +393,8 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         tx.update(d.reference,{'status':'accepted','driverUid':widget.user.uid,'driverName':profile['name']??widget.user.displayName??'ALLways Rider','driverPhone':profile['mobileNumber']??widget.user.phoneNumber??'','driverVehicleType':normalized,'acceptedAt':FieldValue.serverTimestamp(),'updatedAt':FieldValue.serverTimestamp()});
         tx.set(p.reference,{'status':'offline','availableForRides':false,'activeRideId':d.id,'statusUpdatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       });
-      if(mounted){setState(()=>online=false);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Ride accepted. Open My Rides for tracking and completion.')));}
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+      if(context.mounted){setState(()=>online=false);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Ride accepted. Open My Rides for tracking and completion.')));}
+    }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
   }
   double _num(dynamic v)=>v is num?v.toDouble():double.tryParse((v??'').toString())??0;
   @override Widget build(BuildContext context){
@@ -453,5 +429,107 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         }).toList());
       })),
     ]);
+  }
+}
+
+class OrderDetailsPage extends StatefulWidget {
+  final String orderId;
+  final Color accent;
+  final User adminUser;
+  const OrderDetailsPage({super.key,required this.orderId,required this.accent,required this.adminUser});
+  @override State<OrderDetailsPage> createState()=>_OrderDetailsPageState();
+}
+class _OrderDetailsPageState extends State<OrderDetailsPage> {
+  bool busy=false;
+  String _name(Map<String,dynamic> x)=>(x['name']??x['displayName']??x['email']??'Delivery Partner').toString();
+
+  Future<void> _assign(BuildContext context,QueryDocumentSnapshot<Map<String,dynamic>> partner) async {
+    if(busy)return;
+    setState(()=>busy=true);
+    try{
+      final p=partner.data();
+      final approval=(p['approvalStatus']??'').toString().toLowerCase();
+      final status=(p['status']??'').toString().toLowerCase();
+      final available=p['availableForDeliveries']==true||p['deliveryAvailable']==true||status=='online';
+      if(approval.isNotEmpty&&approval!='approved')throw Exception('This delivery partner is not approved.');
+      if(!available)throw Exception('This delivery partner is currently offline.');
+      await FirebaseFirestore.instance.runTransaction((tx)async{
+        final orderRef=FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+        final latest=await tx.get(orderRef);
+        if(!latest.exists)throw Exception('Order no longer exists.');
+        final current=latest.data()??{};
+        final currentCarrier=(current['carrierUid']??current['assignedPartnerId']??'').toString();
+        if(currentCarrier.isNotEmpty&&currentCarrier!=partner.id&&(current['status']??'').toString()!='unassigned')throw Exception('This order is already assigned to another partner.');
+        tx.update(orderRef,{
+          'carrierUid':partner.id,'assignedPartnerId':partner.id,'carrierName':_name(p),
+          'carrierPhone':(p['phone']??p['mobileNumber']??'').toString(),'carrierEmail':(p['email']??'').toString(),
+          'carrierAccepted':false,'assignmentRejected':false,'assignmentMode':'manual','assignedBy':widget.adminUser.uid,
+          'assignedAt':FieldValue.serverTimestamp(),'pendingAcceptanceAt':FieldValue.serverTimestamp(),
+          'status':'pending_acceptance','statusNote':'Waiting for delivery partner acceptance',
+          'customerMessage':'A delivery partner has been assigned. Waiting for acceptance.','updatedAt':FieldValue.serverTimestamp(),
+        });
+        tx.set(partner.reference,{'pendingOrderId':widget.orderId,'availableForDeliveries':false,'updatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
+      });
+      if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Order #'+widget.orderId+' assigned to '+_name(p)+'.')));
+    }catch(e){
+      if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment failed: '+e.toString())));
+    }finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  @override Widget build(BuildContext context){
+    return Scaffold(
+      appBar:AppBar(title:Text('Order #'+widget.orderId)),
+      body:StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+        stream:FirebaseFirestore.instance.collection('orders').doc(widget.orderId).snapshots(),
+        builder:(context,orderSnap){
+          if(orderSnap.hasError)return Center(child:Text('Could not load order: '+orderSnap.error.toString()));
+          if(!orderSnap.hasData)return const Center(child:CircularProgressIndicator());
+          final order=orderSnap.data!.data()??{};
+          final assigned=(order['carrierUid']??order['assignedPartnerId']??'').toString();
+          final status=(order['status']??'New Order').toString();
+          return ListView(
+            padding:const EdgeInsets.all(16),
+            children:[
+              Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('Order #'+widget.orderId,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+                const SizedBox(height:8),Text('Status: '+status),
+                Text('Customer: '+(order['name']??order['customerName']??'Customer').toString()),
+                Text('Phone: '+(order['phone']??order['customerPhone']??'Not provided').toString()),
+                Text('Address: '+(order['address']??'Not provided').toString()),
+                Text('Total: ₹'+(order['total']??order['grandTotal']??order['amount']??0).toString()),
+                if(assigned.isNotEmpty)Text('Assigned partner: '+assigned,style:const TextStyle(fontWeight:FontWeight.w800)),
+              ]))),
+              const SizedBox(height:14),
+              const Text('Assign Delivery Partner',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
+              const SizedBox(height:8),
+              StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+                stream:FirebaseFirestore.instance.collection('deliveryPartners').snapshots(),
+                builder:(context,partnerSnap){
+                  if(partnerSnap.hasError)return Text('Could not load delivery partners: '+partnerSnap.error.toString());
+                  if(!partnerSnap.hasData)return const Center(child:CircularProgressIndicator());
+                  final partners=partnerSnap.data!.docs.where((doc){
+                    final p=doc.data();final approval=(p['approvalStatus']??'').toString().toLowerCase();
+                    final status=(p['status']??'').toString().toLowerCase();
+                    final available=p['availableForDeliveries']==true||p['deliveryAvailable']==true||status=='online';
+                    return (approval.isEmpty||approval=='approved')&&available;
+                  }).toList();
+                  if(partners.isEmpty)return const Card(child:Padding(padding:EdgeInsets.all(18),child:Text('No approved delivery partner is currently available.')));
+                  return Column(children:partners.map((partner){
+                    final p=partner.data();final name=_name(p);final phone=(p['phone']??p['mobileNumber']??'').toString();
+                    final status=(p['status']??p['dutyStatus']??'offline').toString();
+                    return Card(child:ListTile(
+                      leading:const CircleAvatar(child:Icon(Icons.delivery_dining)),
+                      title:Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
+                      subtitle:Text(status+(phone.isEmpty?'':' • '+phone)),
+                      trailing:FilledButton(onPressed:busy?null:()=>_assign(context,partner),style:FilledButton.styleFrom(backgroundColor:widget.accent),child:const Text('Assign')),
+                    ));
+                  }).toList());
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

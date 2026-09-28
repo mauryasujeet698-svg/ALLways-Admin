@@ -4,9 +4,33 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
+import 'account_theme.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
+
+Future<void> initializeAdminNotifications(User user) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('notifications_enabled') == false) return;
+    final settings = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+    if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+    await FirebaseMessaging.instance.subscribeToTopic('all_users');
+    await prefs.setBool('notifications_enabled', true);
+    Future<void> saveToken(String? token) async {
+      if (token == null || token.isEmpty) return;
+      await FirebaseFirestore.instance.collection('fcmTokens').doc(user.uid).collection('tokens').doc(token).set({
+        'uid': user.uid,
+        'token': token,
+        'role': 'admin',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    await saveToken(await FirebaseMessaging.instance.getToken());
+    FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+  } catch (_) {}
+}
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -18,6 +42,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await GoogleSignIn.instance.initialize();
+  await appThemeController.load();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const AllwaysAdminApp());
 }
@@ -25,7 +50,10 @@ Future<void> main() async {
 class AllwaysAdminApp extends StatelessWidget {
   const AllwaysAdminApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: appThemeController,
+    builder: (context, mode, _) => MaterialApp(
+
     debugShowCheckedModeBanner: false,
     title: 'ALLways Admin',
     theme: ThemeData(
@@ -33,16 +61,19 @@ class AllwaysAdminApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFC2185B)),
       scaffoldBackgroundColor: const Color(0xFFF8F8F8),
     ),
+    themeMode: mode,
+    darkTheme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFC2185B), brightness: Brightness.dark)),
     home: const AdminAuthGate(),
+  ),
   );
 }
 
 class AdminAuthGate extends StatelessWidget {
   const AdminAuthGate({super.key});
   Future<bool> _isAdmin(User user) async {
-    if ((user.email ?? '').trim().toLowerCase() == adminEmail.toLowerCase()) return true;
-    final snap = await FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
-    return (snap.data()?['role'] ?? '').toString().toLowerCase() == 'admin';
+    // Admin access is intentionally allow-listed. A client-editable Firestore role
+    // must never be sufficient to elevate a normal account to Admin.
+    return (user.email ?? '').trim().toLowerCase() == adminEmail.toLowerCase();
   }
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
@@ -58,6 +89,7 @@ class AdminAuthGate extends StatelessWidget {
             FirebaseAuth.instance.signOut();
             return const AdminLoginPage(message: 'This account does not have Admin access.');
           }
+          initializeAdminNotifications(user);
           return RoleDashboardScreen(
             role: 'admin',
             user: user,

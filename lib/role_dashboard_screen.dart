@@ -20,21 +20,19 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
   bool busyStatus=false;
 
   Color get accent=>switch(widget.role){
-    'admin'=>const Color(0xFFC2185B),'seller'=>const Color(0xFF087F43),'delivery_partner'=>const Color(0xFF1565C0),'carrier'=>const Color(0xFF5B1ACF),_=>Colors.black
+    'admin'=>const Color(0xFFC2185B),'delivery_partner'=>const Color(0xFF1565C0),'carrier'=>const Color(0xFF5B1ACF),_=>Colors.black
   };
   bool get admin=>widget.role=='admin';
-  bool get seller=>widget.role=='seller';
   bool get delivery=>widget.role=='delivery_partner';
   bool get carrier=>widget.role=='carrier';
   String get title=>switch(widget.role){
-    'admin'=>'ALLways Admin','seller'=>'ALLways Seller','delivery_partner'=>'ALLways Delivery Partner','carrier'=>'ALLways Rider',_=>'ALLways'
+    'admin'=>'ALLways Admin','delivery_partner'=>'ALLways Delivery Partner','carrier'=>'ALLways Rider',_=>'ALLways'
   };
   IconData get icon=>switch(widget.role){
-    'admin'=>Icons.workspace_premium,'seller'=>Icons.storefront,'delivery_partner'=>Icons.local_shipping,'carrier'=>Icons.two_wheeler,_=>Icons.dashboard
+    'admin'=>Icons.workspace_premium,'delivery_partner'=>Icons.local_shipping,'carrier'=>Icons.two_wheeler,_=>Icons.dashboard
   };
   String get status{
     if(admin)return 'Super Admin';
-    if(seller)return 'Verified Seller';
     return (profile['status']??profile['dutyStatus']??'offline').toString().toLowerCase()=='online'?'Online':'Offline';
   }
   bool get online=>status=='Online';
@@ -42,7 +40,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
   @override void initState(){super.initState();_load();}
   Future<void> _load()async{
     try{
-      final col=seller?'sellers':carrier?'ridePartners':'customers';
+      final col=carrier?'ridePartners':'customers';
       final snap=await FirebaseFirestore.instance.collection(col).doc(widget.user.uid).get();
       if(mounted)setState(()=>profile=snap.data()??{});
     }catch(_){}
@@ -51,13 +49,9 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   List<_Action> get actions=>switch(widget.role){
     'admin'=>const[
-      _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),_Action('Manage Sellers',Icons.storefront,'Operations'),
+      _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),
       _Action('Manage Banners',Icons.view_carousel,'Content'),_Action('Homepage & Content',Icons.home_work,'Content'),_Action('Send Notifications',Icons.campaign,'Content'),
-      _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),
-    ],
-    'seller'=>const[
-      _Action('Products',Icons.inventory_2,'Store'),_Action('Inventory',Icons.fact_check,'Store'),_Action('Shop Profile',Icons.storefront,'Store'),_Action('Orders',Icons.receipt_long,'Orders'),
-      _Action('Offers',Icons.local_offer,'Growth'),_Action('Sales Analytics',Icons.bar_chart,'Growth'),_Action('Payouts',Icons.account_balance_wallet,'Finance'),_Action('Help & Support',Icons.support_agent,'Account'),
+      _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),_Action('Account Settings',Icons.manage_accounts,'Settings'),
     ],
     'delivery_partner'=>const[
       _Action('Delivery Requests',Icons.local_shipping,'Work'),_Action('My Deliveries',Icons.assignment_turned_in,'Work'),_Action('Earnings',Icons.currency_rupee,'Finance'),_Action('Incentives',Icons.card_giftcard,'Finance'),
@@ -110,7 +104,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     const SizedBox(height:16),
     _liveStats(),
     const SizedBox(height:18),
-    Text(admin?'Platform control center':seller?'Seller workspace':delivery?'Delivery workspace':'Rider workspace',style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
+    Text(admin?'Platform control center':delivery?'Delivery workspace':'Rider workspace',style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
     const SizedBox(height:10),
     ..._groupedActions(),
     const SizedBox(height:18),
@@ -121,11 +115,11 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     CircleAvatar(radius:29,backgroundColor:accent.withOpacity(.13),child:Text(_name.substring(0,1).toUpperCase(),style:TextStyle(fontSize:23,fontWeight:FontWeight.w900,color:accent))),
     const SizedBox(width:13),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(_name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),Text(_roleLine,style:TextStyle(color:accent,fontWeight:FontWeight.w700,fontSize:12))])),
     if(carrier||delivery)Switch(value:online,onChanged:busyStatus?null:_setOnline),
-    if(admin||seller)IconButton(onPressed:()=>open(seller?'Shop Profile':'Users & Roles'),icon:const Icon(Icons.chevron_right)),
+    if(admin)IconButton(onPressed:()=>open('Users & Roles'),icon:const Icon(Icons.chevron_right)),
   ])));
 
   String get _name{final n=(profile['businessName']??profile['shopName']??profile['name']??profile['displayName']??'').toString().trim();return n.isEmpty?(widget.user.displayName??'ALLways Account'):n;}
-  String get _roleLine=>admin?'Full platform access':seller?'Store and catalogue management':delivery?'Deliveries, earnings and safety':online?'Online • accepting nearby rides':'Offline • tap the switch to go online';
+  String get _roleLine=>admin?'Full platform access':delivery?'Deliveries, earnings and safety':online?'Online • accepting nearby rides':'Offline • tap the switch to go online';
 
   Widget _liveStats()=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
     stream:FirebaseFirestore.instance.collection('orders').snapshots(),
@@ -133,7 +127,6 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
       final docs=s.data?.docs??const <QueryDocumentSnapshot<Map<String,dynamic>>>[];
       final scoped=docs.where((d){
         final o=d.data();
-        if(seller)return (o['sellerId']??o['sellerUid']??'').toString()==widget.user.uid;
         if(carrier||delivery)return (o['carrierUid']??'').toString()==widget.user.uid;
         return true;
       }).toList();
@@ -141,7 +134,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
       final done=scoped.where((d){final x=(d.data()['status']??'').toString().toLowerCase();return x=='delivered'||x=='completed';}).length;
       num value=0;for(final d in scoped)value+=(d.data()['total'] is num?d.data()['total']:num.tryParse((d.data()['total']??0).toString())??0);
       return Row(children:[
-        _stat(pending.toString(),admin?'Pending orders':seller?'Pending orders':carrier?'Open rides':'Open deliveries',Icons.pending_actions),
+        _stat(pending.toString(),admin?'Pending orders':carrier?'Open rides':'Open deliveries',Icons.pending_actions),
         const SizedBox(width:8),_stat(done.toString(),'Completed',Icons.check_circle_outline),
         const SizedBox(width:8),_stat('₹'+value.toStringAsFixed(0),'Order value',Icons.currency_rupee),
       ]);
@@ -176,8 +169,8 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
   }
 
   Widget _recent()=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('orders').orderBy('createdAt',descending:true).limit(5).snapshots(),builder:(context,s){if(!s.hasData)return const SizedBox.shrink();return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Row(children:[const Text('Recent activity',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),const Spacer(),TextButton(onPressed:()=>open(admin?'Manage Orders':seller?'Orders':carrier?'My Rides':'My Deliveries'),child:Text('View all',style:TextStyle(color:accent)))]),
-    ...s.data!.docs.map((d){final o=d.data();return Card(elevation:0,child:ListTile(onTap:()=>open(admin?'Manage Orders':seller?'Orders':carrier?'My Rides':'My Deliveries'),leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(carrier?Icons.two_wheeler:delivery?Icons.local_shipping:Icons.receipt_long,color:accent)),title:Text('#'+(o['id']??d.id).toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((o['name']??o['customerName']??'Customer').toString()),trailing:Text('₹'+(o['total']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w800))));}),
+    Row(children:[const Text('Recent activity',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),const Spacer(),TextButton(onPressed:()=>open(admin?'Manage Orders':carrier?'My Rides':'My Deliveries'),child:Text('View all',style:TextStyle(color:accent)))]),
+    ...s.data!.docs.map((d){final o=d.data();return Card(elevation:0,child:ListTile(onTap:()=>open(admin?'Manage Orders':carrier?'My Rides':'My Deliveries'),leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(carrier?Icons.two_wheeler:delivery?Icons.local_shipping:Icons.receipt_long,color:accent)),title:Text('#'+(o['id']??d.id).toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((o['name']??o['customerName']??'Customer').toString()),trailing:Text('₹'+(o['total']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w800))));}),
   ]);});
 }
 
