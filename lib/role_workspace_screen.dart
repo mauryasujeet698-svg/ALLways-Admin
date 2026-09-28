@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'admin_cms_screen.dart';
+import 'catalog_sync_screen.dart';
 
 class RoleFeatureScreen extends StatelessWidget {
   final String role, feature;
@@ -12,7 +13,7 @@ class RoleFeatureScreen extends StatelessWidget {
 
   IconData get icon => const {
     'Manage Sellers':Icons.storefront,'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
-    'Manage Orders':Icons.receipt_long,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
+    'Manage Orders':Icons.receipt_long,'Catalog Sync':Icons.sync,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
     'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
     'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
     'Delivery Requests':Icons.local_shipping,'My Deliveries':Icons.assignment_turned_in,'Earnings':Icons.currency_rupee,'Incentives':Icons.card_giftcard,'Performance':Icons.bar_chart,'Documents':Icons.description,'Safety & SOS':Icons.shield,'Help & Support':Icons.support_agent,
@@ -31,6 +32,7 @@ class RoleFeatureScreen extends StatelessWidget {
   }
 
   Widget _content(BuildContext context){
+    if(feature=='Catalog Sync')return const CatalogSyncScreen();
     if(feature=='Manage Orders'||feature=='Orders'||feature=='My Deliveries'||feature=='My Rides'||feature=='Ride History')return _orders(context);
     if(feature=='Ride Requests')return RideRequestsScreen(user:user,accent:accent);
     if(feature=='Delivery Requests')return _requests(context,true);
