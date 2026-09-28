@@ -11,7 +11,7 @@ class RoleFeatureScreen extends StatelessWidget {
   const RoleFeatureScreen({super.key,required this.role,required this.feature,required this.user,required this.accent});
 
   IconData get icon => const {
-    'Manage Sellers':Icons.storefront,'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
+'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
     'Manage Orders':Icons.receipt_long,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
     'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
     'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
@@ -34,10 +34,6 @@ class RoleFeatureScreen extends StatelessWidget {
     if(feature=='Manage Orders'||feature=='Orders'||feature=='My Deliveries'||feature=='My Rides'||feature=='Ride History')return _orders(context);
     if(feature=='Ride Requests')return RideRequestsScreen(user:user,accent:accent);
     if(feature=='Delivery Requests')return _requests(context,true);
-    if(feature=='Products'||feature=='Inventory')return _products(context);
-    if(feature=='Shop Profile')return _shopProfile(context);
-    if(feature=='Offers')return _offers(context);
-    if(feature=='Manage Sellers')return _people('sellers','Seller');
     if(feature=='Manage Carriers')return _people('ridePartners','Rider');
     if(feature=='Manage Delivery Partners')return _people('deliveryPartners','Delivery Partner',roleFilter:'delivery_partner');
     if(feature=='Users & Roles')return _users(context);
@@ -61,7 +57,6 @@ class RoleFeatureScreen extends StatelessWidget {
       if(!snap.hasData)return const Center(child:CircularProgressIndicator());
       var docs=snap.data!.docs.where((d){
         final o=d.data(); final status=(o['status']??'').toString().toLowerCase();
-        if(role=='seller')return (o['sellerId']??o['sellerUid']??'').toString()==user.uid;
         if(role=='delivery_partner'||role=='carrier')return (o['carrierUid']??'').toString()==user.uid;
         if(feature=='Ride History')return status=='completed'||status=='delivered';
         return status!='cancelled';
