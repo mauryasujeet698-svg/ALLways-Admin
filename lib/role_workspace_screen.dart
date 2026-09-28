@@ -373,10 +373,10 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
   Future<void> _toggle(bool value)async{
     try{
       if(value)await _locate();
-      if(value&&position==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Turn on location permission before going online.')));return;}
+      if(value&&position==null){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Turn on location permission before going online.')));return;}
       await FirebaseFirestore.instance.collection('ridePartners').doc(widget.user.uid).set({'status':value?'online':'offline','availableForRides':value,'carrierLat':position?.latitude,'carrierLng':position?.longitude,'statusUpdatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       if(mounted)setState(()=>online=value);
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not change duty status: '+e.toString())));}
+    }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not change duty status: '+e.toString())));}
   }
   Future<void> _reject(QueryDocumentSnapshot<Map<String,dynamic>> d)async{await d.reference.update({'rejectedBy':FieldValue.arrayUnion([widget.user.uid]),'updatedAt':FieldValue.serverTimestamp()});}
   Future<void> _accept(QueryDocumentSnapshot<Map<String,dynamic>> d)async{
@@ -394,7 +394,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         tx.set(p.reference,{'status':'offline','availableForRides':false,'activeRideId':d.id,'statusUpdatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       });
       if(mounted){setState(()=>online=false);ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Ride accepted. Open My Rides for tracking and completion.')));}
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+    }catch(e){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
   }
   double _num(dynamic v)=>v is num?v.toDouble():double.tryParse((v??'').toString())??0;
   @override Widget build(BuildContext context){
@@ -470,9 +470,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         });
         tx.set(partner.reference,{'pendingOrderId':widget.orderId,'availableForDeliveries':false,'updatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
       });
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Order #'+widget.orderId+' assigned to '+_name(p)+'.')));
+      if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Order #'+widget.orderId+' assigned to '+_name(p)+'.')));
     }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment failed: '+e.toString())));
+      if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment failed: '+e.toString())));
     }finally{if(mounted)setState(()=>busy=false);}
   }
 
