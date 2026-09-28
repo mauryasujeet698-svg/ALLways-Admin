@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'account_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'admin_cms_screen.dart';
 
@@ -317,7 +318,7 @@ class RoleFeatureScreen extends StatelessWidget {
 
   Widget _announcement(BuildContext context){final title=TextEditingController(),body=TextEditingController();return _page([_hero('Send Notifications','Create an announcement record for ALLways users.'),TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),const SizedBox(height:10),TextField(controller:body,maxLines:4,decoration:const InputDecoration(labelText:'Message')),const SizedBox(height:12),FilledButton.icon(onPressed:()async{if(title.text.trim().isEmpty||body.text.trim().isEmpty)return;await FirebaseFirestore.instance.collection('announcements').add({'title':title.text.trim(),'body':body.text.trim(),'type':'announcement','createdAt':FieldValue.serverTimestamp(),'createdBy':user.uid});if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Announcement saved.')));},icon:const Icon(Icons.campaign),label:const Text('Publish announcement'))]);}
 
-  Widget _account(BuildContext context)=>_page([_hero(feature,'Account controls for this role.'),Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Approved email'),subtitle:Text(user.email??'Not available'))),Card(child:ListTile(leading:const Icon(Icons.logout),title:const Text('Sign out'),onTap:()=>FirebaseAuth.instance.signOut()))]);
+  Widget _account(BuildContext context){ if(feature=='Account Settings') return AccountSettingsPage(user:user,collection:'customers',accent:accent,role:role); return _page([_hero(feature,'Account controls for this role.'),Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Approved email'),subtitle:Text(user.email??'Not available'))),Card(child:ListTile(leading:const Icon(Icons.palette_outlined),title:const Text('Change Theme'),subtitle:const Text('Light, dark or system default'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ThemeSettingsPage(accent:accent))))),Card(child:ListTile(leading:const Icon(Icons.logout),title:const Text('Sign out'),onTap:()=>FirebaseAuth.instance.signOut())),Card(child:ListTile(leading:const Icon(Icons.delete_outline,color:Colors.red),title:const Text('Delete Account',style:TextStyle(color:Colors.red)),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AccountSettingsPage(user:user,collection:'customers',accent:accent,role:role))))]); }
 
   Widget _empty(String title,String message)=>Card(elevation:0,child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[Icon(icon,color:accent,size:38),const SizedBox(height:10),Text(title,style:const TextStyle(fontWeight:FontWeight.w900)),const SizedBox(height:5),Text(message,textAlign:TextAlign.center,style:const TextStyle(color:Colors.grey))])));
   Widget _error(String message)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Text(message,style:const TextStyle(color:Colors.red))));
