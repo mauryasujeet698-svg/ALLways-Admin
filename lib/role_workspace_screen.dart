@@ -73,7 +73,7 @@ class RoleFeatureScreen extends StatelessWidget {
             title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
             subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status),
             trailing:Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),
-            onTap:()=>Navigator.pushNamed(context,'/order-details',arguments:{'orderId':d.id}),
+            onTap:()=>Navigator.push(context,MaterialPageRoute(builder: (_) => OrderDetailsPage(orderId: d.id, accent: accent, adminUser: user))),
           ));
         }),
       ]);
@@ -429,5 +429,107 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         }).toList());
       })),
     ]);
+  }
+}
+
+class OrderDetailsPage extends StatefulWidget {
+  final String orderId;
+  final Color accent;
+  final User adminUser;
+  const OrderDetailsPage({super.key,required this.orderId,required this.accent,required this.adminUser});
+  @override State<OrderDetailsPage> createState()=>_OrderDetailsPageState();
+}
+class _OrderDetailsPageState extends State<OrderDetailsPage> {
+  bool busy=false;
+  String _name(Map<String,dynamic> x)=>(x['name']??x['displayName']??x['email']??'Delivery Partner').toString();
+
+  Future<void> _assign(BuildContext context,QueryDocumentSnapshot<Map<String,dynamic>> partner) async {
+    if(busy)return;
+    setState(()=>busy=true);
+    try{
+      final p=partner.data();
+      final approval=(p['approvalStatus']??'').toString().toLowerCase();
+      final status=(p['status']??'').toString().toLowerCase();
+      final available=p['availableForDeliveries']==true||p['deliveryAvailable']==true||status=='online';
+      if(approval.isNotEmpty&&approval!='approved')throw Exception('This delivery partner is not approved.');
+      if(!available)throw Exception('This delivery partner is currently offline.');
+      await FirebaseFirestore.instance.runTransaction((tx)async{
+        final orderRef=FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+        final latest=await tx.get(orderRef);
+        if(!latest.exists)throw Exception('Order no longer exists.');
+        final current=latest.data()??{};
+        final currentCarrier=(current['carrierUid']??current['assignedPartnerId']??'').toString();
+        if(currentCarrier.isNotEmpty&&currentCarrier!=partner.id&&(current['status']??'').toString()!='unassigned')throw Exception('This order is already assigned to another partner.');
+        tx.update(orderRef,{
+          'carrierUid':partner.id,'assignedPartnerId':partner.id,'carrierName':_name(p),
+          'carrierPhone':(p['phone']??p['mobileNumber']??'').toString(),'carrierEmail':(p['email']??'').toString(),
+          'carrierAccepted':false,'assignmentRejected':false,'assignmentMode':'manual','assignedBy':widget.adminUser.uid,
+          'assignedAt':FieldValue.serverTimestamp(),'pendingAcceptanceAt':FieldValue.serverTimestamp(),
+          'status':'pending_acceptance','statusNote':'Waiting for delivery partner acceptance',
+          'customerMessage':'A delivery partner has been assigned. Waiting for acceptance.','updatedAt':FieldValue.serverTimestamp(),
+        });
+        tx.set(partner.reference,{'pendingOrderId':widget.orderId,'availableForDeliveries':false,'updatedAt':FieldValue.serverTimestamp()},SetOptions(merge:true));
+      });
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Order #'+widget.orderId+' assigned to '+_name(p)+'.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Assignment failed: '+e.toString())));
+    }finally{if(mounted)setState(()=>busy=false);}
+  }
+
+  @override Widget build(BuildContext context){
+    return Scaffold(
+      appBar:AppBar(title:Text('Order #'+widget.orderId)),
+      body:StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+        stream:FirebaseFirestore.instance.collection('orders').doc(widget.orderId).snapshots(),
+        builder:(context,orderSnap){
+          if(orderSnap.hasError)return Center(child:Text('Could not load order: '+orderSnap.error.toString()));
+          if(!orderSnap.hasData)return const Center(child:CircularProgressIndicator());
+          final order=orderSnap.data!.data()??{};
+          final assigned=(order['carrierUid']??order['assignedPartnerId']??'').toString();
+          final status=(order['status']??'New Order').toString();
+          return ListView(
+            padding:const EdgeInsets.all(16),
+            children:[
+              Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('Order #'+widget.orderId,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+                const SizedBox(height:8),Text('Status: '+status),
+                Text('Customer: '+(order['name']??order['customerName']??'Customer').toString()),
+                Text('Phone: '+(order['phone']??order['customerPhone']??'Not provided').toString()),
+                Text('Address: '+(order['address']??'Not provided').toString()),
+                Text('Total: ₹'+(order['total']??order['grandTotal']??order['amount']??0).toString()),
+                if(assigned.isNotEmpty)Text('Assigned partner: '+assigned,style:const TextStyle(fontWeight:FontWeight.w800)),
+              ]))),
+              const SizedBox(height:14),
+              const Text('Assign Delivery Partner',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
+              const SizedBox(height:8),
+              StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+                stream:FirebaseFirestore.instance.collection('deliveryPartners').snapshots(),
+                builder:(context,partnerSnap){
+                  if(partnerSnap.hasError)return Text('Could not load delivery partners: '+partnerSnap.error.toString());
+                  if(!partnerSnap.hasData)return const Center(child:CircularProgressIndicator());
+                  final partners=partnerSnap.data!.docs.where((doc){
+                    final p=doc.data();final approval=(p['approvalStatus']??'').toString().toLowerCase();
+                    final status=(p['status']??'').toString().toLowerCase();
+                    final available=p['availableForDeliveries']==true||p['deliveryAvailable']==true||status=='online';
+                    return (approval.isEmpty||approval=='approved')&&available;
+                  }).toList();
+                  if(partners.isEmpty)return const Card(child:Padding(padding:EdgeInsets.all(18),child:Text('No approved delivery partner is currently available.')));
+                  return Column(children:partners.map((partner){
+                    final p=partner.data();final name=_name(p);final phone=(p['phone']??p['mobileNumber']??'').toString();
+                    final status=(p['status']??p['dutyStatus']??'offline').toString();
+                    return Card(child:ListTile(
+                      leading:const CircleAvatar(child:Icon(Icons.delivery_dining)),
+                      title:Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
+                      subtitle:Text(status+(phone.isEmpty?'':' • '+phone)),
+                      trailing:FilledButton(onPressed:busy?null:()=>_assign(context,partner),style:FilledButton.styleFrom(backgroundColor:widget.accent),child:const Text('Assign')),
+                    ));
+                  }).toList());
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
