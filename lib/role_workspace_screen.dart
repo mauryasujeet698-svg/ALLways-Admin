@@ -159,10 +159,14 @@ class RoleFeatureScreen extends StatelessWidget {
 
               return Card(
                 child: ListTile(
+                  leading: (x['profilePhotoUrl'] ?? '').toString().isNotEmpty
+                      ? CircleAvatar(backgroundImage: NetworkImage((x['profilePhotoUrl']).toString()))
+                      : const CircleAvatar(child: Icon(Icons.person_outline)),
                   title: Text(name,
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: Text(
                       '$status • ${(x['email'] ?? '').toString()}'),
+                  onTap: partnerCollection ? () => _showPartnerDetails(context, x, name, status) : null,
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (!partnerCollection) {
@@ -264,6 +268,36 @@ class RoleFeatureScreen extends StatelessWidget {
           ]);
         },
       );
+
+  void _showPartnerDetails(BuildContext context, Map<String,dynamic> x, String name, String status) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
+        content: SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Status: $status'),
+            Text('Mobile: \${(x['mobileNumber'] ?? x['phone'] ?? 'Not provided').toString()}'),
+            Text('Address: \${(x['address'] ?? 'Not provided').toString()}'),
+            Text('Vehicle: \${(x['vehicleType'] ?? 'Not provided').toString()} • \${(x['vehicleNumber'] ?? 'Not provided').toString()}'),
+            const SizedBox(height: 14),
+            if ((x['profilePhotoUrl'] ?? '').toString().isNotEmpty) ...[
+              const Text('Profile photo', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(x['profilePhotoUrl'].toString(), height: 180, width: double.infinity, fit: BoxFit.cover)),
+              const SizedBox(height: 12),
+            ],
+            if ((x['vehiclePhotoUrl'] ?? '').toString().isNotEmpty) ...[
+              const Text('Vehicle photo', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(x['vehiclePhotoUrl'].toString(), height: 180, width: double.infinity, fit: BoxFit.cover)),
+            ],
+          ]),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      ),
+    );
+  }
 
   Widget _metricRow(String v,String l)=>Card(elevation:0,color:accent.withOpacity(.06),child:Padding(padding:const EdgeInsets.all(14),child:Row(children:[Icon(Icons.people_outline,color:accent),const SizedBox(width:10),Text(v,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(width:8),Text(l)])));
 
