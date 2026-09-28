@@ -4,9 +4,32 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
+
+Future<void> initializeAdminNotifications(User user) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('notifications_enabled') == false) return;
+    final settings = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+    if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+    await FirebaseMessaging.instance.subscribeToTopic('all_users');
+    await prefs.setBool('notifications_enabled', true);
+    Future<void> saveToken(String? token) async {
+      if (token == null || token.isEmpty) return;
+      await FirebaseFirestore.instance.collection('fcmTokens').doc(user.uid).collection('tokens').doc(token).set({
+        'uid': user.uid,
+        'token': token,
+        'role': 'admin',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    await saveToken(await FirebaseMessaging.instance.getToken());
+    FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+  } catch (_) {}
+}
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -58,6 +81,7 @@ class AdminAuthGate extends StatelessWidget {
             FirebaseAuth.instance.signOut();
             return const AdminLoginPage(message: 'This account does not have Admin access.');
           }
+          initializeAdminNotifications(user);
           return RoleDashboardScreen(
             role: 'admin',
             user: user,
