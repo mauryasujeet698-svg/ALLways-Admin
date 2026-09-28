@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'role_workspace_screen.dart';
-import 'catalog_sync_screen.dart';
 import 'allways_design.dart';
 
 class RoleDashboardScreen extends StatefulWidget {
