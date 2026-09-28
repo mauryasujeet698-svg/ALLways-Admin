@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'role_workspace_screen.dart';
+import 'catalog_sync_screen.dart';
 import 'allways_design.dart';
 
 class RoleDashboardScreen extends StatefulWidget {
@@ -51,7 +52,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   List<_Action> get actions=>switch(widget.role){
     'admin'=>const[
-      _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),_Action('Manage Sellers',Icons.storefront,'Operations'),
+      _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Catalog Sync',Icons.sync,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),_Action('Manage Sellers',Icons.storefront,'Operations'),
       _Action('Manage Banners',Icons.view_carousel,'Content'),_Action('Homepage & Content',Icons.home_work,'Content'),_Action('Send Notifications',Icons.campaign,'Content'),
       _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),
     ],
