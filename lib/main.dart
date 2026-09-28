@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
+import 'account_theme.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
 
@@ -41,6 +42,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await GoogleSignIn.instance.initialize();
+  await appThemeController.load();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const AllwaysAdminApp());
 }
@@ -48,7 +50,10 @@ Future<void> main() async {
 class AllwaysAdminApp extends StatelessWidget {
   const AllwaysAdminApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: appThemeController,
+    builder: (context, mode, _) => MaterialApp(
+
     debugShowCheckedModeBanner: false,
     title: 'ALLways Admin',
     theme: ThemeData(
@@ -56,7 +61,10 @@ class AllwaysAdminApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFC2185B)),
       scaffoldBackgroundColor: const Color(0xFFF8F8F8),
     ),
+    themeMode: mode,
+    darkTheme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFC2185B), brightness: Brightness.dark)),
     home: const AdminAuthGate(),
+  ),
   );
 }
 
