@@ -69,8 +69,8 @@ class RoleFeatureScreen extends StatelessWidget {
         return status!='cancelled';
       }).toList();
       docs.sort((a,b)=>_time(b.data()['createdAt']).compareTo(_time(a.data()['createdAt'])));
-      return _page([_hero(feature,'Tap any item for full details and available actions.'),const SizedBox(height:12),
-        Row(children:[_metric(docs.length.toString(),'Records',Icons.receipt_long),_metric(docs.where((d)=>_isDone(d.data()['status'])).length.toString(),'Completed',Icons.check_circle)]),
+      return _page([_hero(feature,'One queue for operations: see what needs attention, assign quickly, and track completion.'),const SizedBox(height:12),
+        Row(children:[_metric(docs.length.toString(),'Records',Icons.receipt_long),_metric(docs.where((d)=>['new order','pending','pending_acceptance','confirmed'].contains((d.data()['status']??'').toString().toLowerCase())).length.toString(),'Needs attention',Icons.priority_high),_metric(docs.where((d)=>_isDone(d.data()['status'])).length.toString(),'Completed',Icons.check_circle)]),
         const SizedBox(height:12),
         if(docs.isEmpty)_empty('Nothing here yet','New work will appear automatically.')
         else ...docs.map((d){
