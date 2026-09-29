@@ -127,6 +127,8 @@ class RoleFeatureScreen extends StatelessWidget {
         return bo==ao ? 0 : (bo ? 1 : -1);
       });
 
+      if(!context.mounted)return;
+
       final chosen=await showDialog<QueryDocumentSnapshot<Map<String,dynamic>>>(
         context:context,
         builder:(dialogContext)=>AlertDialog(
