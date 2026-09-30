@@ -24,6 +24,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
   @override
   void initState() {
     super.initState();
+    _endpointController.text = _defaultEndpoint;
     _loadLastSync();
   }
 
@@ -47,6 +48,15 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
                 : stamp.toString();
       });
     } catch (_) {}
+
+    try {
+      final settings = await FirebaseFirestore.instance
+          .collection('settings').doc('catalogSync').get();
+      final configured = (settings.data()?['endpoint'] ?? '').toString().trim();
+      if (configured.isNotEmpty && mounted) {
+        setState(() => _endpointController.text = configured);
+      }
+    } catch (_) {}
   }
 
   Future<void> _syncCatalog() async {
@@ -58,6 +68,9 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
     });
 
     try {
+      if (_endpoint.isEmpty) {
+        throw Exception('Enter the deployed Google Apps Script /exec URL first.');
+      }
       final response = await http
           .get(
             Uri.parse(_endpoint),
@@ -331,13 +344,26 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
           const SizedBox(height: 12),
           Card(
             elevation: 0,
-            child: ListTile(
-              leading: const Icon(Icons.table_chart_outlined),
-              title: const Text(
-                'Source',
-                style: TextStyle(fontWeight: FontWeight.w800),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Google Apps Script /exec URL', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _endpointController,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      hintText: 'https://script.google.com/macros/s/.../exec',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Use the URL from the active Apps Script deployment. If the old URL returns 404, redeploy the script and replace it here.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                ],
               ),
-              subtitle: const Text('Google Sheet • Products • /exec API'),
             ),
           ),
           if (_lastSyncText != null)
