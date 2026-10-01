@@ -33,6 +33,7 @@ class RoleFeatureScreen extends StatelessWidget {
 
   Widget _content(BuildContext context){
     if(feature=='Catalog Sync')return const CatalogSyncScreen();
+    if(feature=='Delivery & Pricing')return const AdminCmsScreen(section:'Delivery Settings');
     if(feature=='Manage Orders'||feature=='Orders'||feature=='My Deliveries'||feature=='My Rides'||feature=='Ride History')return _orders(context);
     if(feature=='Ride Requests')return RideRequestsScreen(user:user,accent:accent);
     if(feature=='Delivery Requests')return _requests(context,true);
