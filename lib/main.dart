@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
@@ -12,6 +13,50 @@ const adminEmail = 'mauryasujeet698@gmail.com';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   await GoogleSignIn.instance.initialize();
+}
+
+Future<void> setupAdminNotifications(User user) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('notifications_enabled') == false) return;
+
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    await FirebaseMessaging.instance.subscribeToTopic('all_users');
+    await FirebaseMessaging.instance.subscribeToTopic('admins');
+    await prefs.setBool('notifications_enabled', true);
+
+    Future<void> saveToken(String? token) async {
+      if (token == null || token.isEmpty) return;
+      await FirebaseFirestore.instance
+          .collection('fcmTokens')
+          .doc(user.uid)
+          .collection('tokens')
+          .doc(token)
+          .set({
+        'uid': user.uid,
+        'token': token,
+        'role': 'admin',
+        'platform': 'mobile',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await saveToken(await FirebaseMessaging.instance.getToken());
+    FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+  } catch (_) {}
 }
 
 Future<void> main() async {
@@ -58,6 +103,7 @@ class AdminAuthGate extends StatelessWidget {
             FirebaseAuth.instance.signOut();
             return const AdminLoginPage(message: 'This account does not have Admin access.');
           }
+          setupAdminNotifications(user);
           return RoleDashboardScreen(
             role: 'admin',
             user: user,
