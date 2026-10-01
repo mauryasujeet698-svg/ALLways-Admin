@@ -57,17 +57,6 @@ class RoleFeatureScreen extends StatelessWidget {
   Widget _hero(String title,String subtitle)=>Card(elevation:0,color:accent.withOpacity(.08),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(radius:28,backgroundColor:accent.withOpacity(.14),child:Icon(icon,color:accent,size:28)),const SizedBox(width:13),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(subtitle,style:const TextStyle(color:Colors.black54))]))])));
   Widget _metric(String value,String label,IconData i)=>Expanded(child:Card(elevation:0,child:Padding(padding:const EdgeInsets.all(13),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(i,color:accent,size:20),const SizedBox(height:7),Text(value,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),Text(label,style:const TextStyle(fontSize:10.5,color:Colors.grey))]))));
 
-  void _showOrderItems(BuildContext context,Map<String,dynamic> o){
-    final raw=o['items'];
-    final items=raw is List?raw.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList():<Map<String,dynamic>>[];
-    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-      const Text('Order items',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),
-      if(items.isEmpty)const Text('No item details were saved with this order.'),
-      ...items.map((x)=>ListTile(dense:true,leading:const Icon(Icons.inventory_2_outlined),title:Text((x['name']??x['title']??'Item').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('Qty: '+(x['qty']??x['quantity']??1).toString()),trailing:Text('₹'+_num(x['price']).toStringAsFixed(0)))),
-      const Divider(),Align(alignment:Alignment.centerRight,child:Text('Total: ₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900))),
-    ]))));
-  }
-
   Widget _orders(BuildContext context)=>_AdminOrdersFilterView(
     role:role,feature:feature,user:user,accent:accent,
     onAssign:_assignDeliveryPartner,
@@ -482,7 +471,6 @@ class RoleFeatureScreen extends StatelessWidget {
   Widget _empty(String title,String message)=>Card(elevation:0,child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[Icon(icon,color:accent,size:38),const SizedBox(height:10),Text(title,style:const TextStyle(fontWeight:FontWeight.w900)),const SizedBox(height:5),Text(message,textAlign:TextAlign.center,style:const TextStyle(color:Colors.grey))])));
   Widget _error(String message)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Text(message,style:const TextStyle(color:Colors.red))));
   num _num(dynamic v)=>v is num?v:num.tryParse((v??'').toString().replaceAll(',',''))??0;
-  int _time(dynamic v)=>v is Timestamp?v.millisecondsSinceEpoch:v is num?v.toInt():DateTime.tryParse((v??'').toString())?.millisecondsSinceEpoch??0;
   bool _isDone(dynamic v){final s=(v??'').toString().toLowerCase();return s=='delivered'||s=='completed'||s=='cancelled';}
 }
 
