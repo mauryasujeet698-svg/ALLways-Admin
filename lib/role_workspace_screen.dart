@@ -57,54 +57,20 @@ class RoleFeatureScreen extends StatelessWidget {
   Widget _hero(String title,String subtitle)=>Card(elevation:0,color:accent.withOpacity(.08),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(radius:28,backgroundColor:accent.withOpacity(.14),child:Icon(icon,color:accent,size:28)),const SizedBox(width:13),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(subtitle,style:const TextStyle(color:Colors.black54))]))])));
   Widget _metric(String value,String label,IconData i)=>Expanded(child:Card(elevation:0,child:Padding(padding:const EdgeInsets.all(13),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(i,color:accent,size:20),const SizedBox(height:7),Text(value,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),Text(label,style:const TextStyle(fontSize:10.5,color:Colors.grey))]))));
 
-  Widget _orders(BuildContext context)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
-    stream:FirebaseFirestore.instance.collection('orders').snapshots(),
-    builder:(context,snap){
-      if(snap.hasError)return _page([_hero(feature,'Live order queue'),_error(snap.error.toString())]);
-      if(!snap.hasData)return const Center(child:CircularProgressIndicator());
-      var docs=snap.data!.docs.where((d){
-        final o=d.data(); final status=(o['status']??'').toString().toLowerCase();
-        if(role=='seller')return (o['sellerId']??o['sellerUid']??'').toString()==user.uid;
-        if(role=='delivery_partner'||role=='carrier')return (o['carrierUid']??'').toString()==user.uid;
-        if(feature=='Ride History')return status=='completed'||status=='delivered';
-        return status!='cancelled';
-      }).toList();
-      docs.sort((a,b)=>_time(b.data()['createdAt']).compareTo(_time(a.data()['createdAt'])));
-      return _page([_hero(feature,'One queue for operations: see what needs attention, assign quickly, and track completion.'),const SizedBox(height:12),
-        Row(children:[_metric(docs.length.toString(),'Records',Icons.receipt_long),_metric(docs.where((d)=>['new order','pending','pending_acceptance','confirmed'].contains((d.data()['status']??'').toString().toLowerCase())).length.toString(),'Needs attention',Icons.priority_high),_metric(docs.where((d)=>_isDone(d.data()['status'])).length.toString(),'Completed',Icons.check_circle)]),
-        const SizedBox(height:12),
-        if(docs.isEmpty)_empty('Nothing here yet','New work will appear automatically.')
-        else ...docs.map((d){
-          final o=d.data();final id=(o['id']??d.id).toString();final status=(o['status']??'New Order').toString();
-          final assignedName=(o['carrierName']??'').toString().trim();
-          return Card(
-            elevation:0,
-            child:Padding(
-              padding:const EdgeInsets.all(4),
-              child:ListTile(
-                leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(role=='carrier'?Icons.two_wheeler:Icons.receipt_long,color:accent)),
-                title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
-                subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status+(o['deliveryType']=='scheduled'?' • Scheduled':' • Instant')+(assignedName.isEmpty?'':' • Assigned: '+assignedName)),
-                trailing:Column(
-                  mainAxisAlignment:MainAxisAlignment.center,
-                  crossAxisAlignment:CrossAxisAlignment.end,
-                  children:[
-                    Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),
-                    if(role=='admin' && status.toLowerCase()!='cancelled' && status.toLowerCase()!='delivered')
-                      TextButton.icon(
-                        onPressed:()=>_assignDeliveryPartner(context,d),
-                        icon:const Icon(Icons.local_shipping_outlined,size:17),
-                        label:Text(assignedName.isEmpty?'Assign':'Reassign'),
-                      ),
-                  ],
-                ),
-                onTap:()=>Navigator.pushNamed(context,'/order-details',arguments:{'orderId':d.id}),
-              ),
-            ),
-          );
-        }),
-      ]);
-    },
+  void _showOrderItems(BuildContext context,Map<String,dynamic> o){
+    final raw=o['items'];
+    final items=raw is List?raw.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList():<Map<String,dynamic>>[];
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('Order items',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),
+      if(items.isEmpty)const Text('No item details were saved with this order.'),
+      ...items.map((x)=>ListTile(dense:true,leading:const Icon(Icons.inventory_2_outlined),title:Text((x['name']??x['title']??'Item').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('Qty: '+(x['qty']??x['quantity']??1).toString()),trailing:Text('₹'+_num(x['price']).toStringAsFixed(0)))),
+      const Divider(),Align(alignment:Alignment.centerRight,child:Text('Total: ₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900))),
+    ]))));
+  }
+
+  Widget _orders(BuildContext context)=>_AdminOrdersFilterView(
+    role:role,feature:feature,user:user,accent:accent,
+    onAssign:_assignDeliveryPartner,
   );
 
   Future<void> _assignDeliveryPartner(BuildContext context,QueryDocumentSnapshot<Map<String,dynamic>> order) async {
