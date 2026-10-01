@@ -21,16 +21,28 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
   int rotationSeconds = 4;
   bool showCategories = true, showOffers = true, showPopular = true, showLocalSellers = true, showTravel = true;
   bool codEnabled = true, loading = true, saving = false;
+  final freeThreshold = TextEditingController(text: '499');
+  final scheduledPerKm = TextEditingController(text: '11');
+  final instantBaseFee = TextEditingController(text: '35');
+  final instantPerKm = TextEditingController(text: '11');
+  final pilotRadiusKm = TextEditingController(text: '4');
+  final pilotCenterLat = TextEditingController(text: '');
+  final pilotCenterLng = TextEditingController(text: '');
+  final scheduledCutoff = TextEditingController(text: '13:30');
+  final specialOfferTitle = TextEditingController(text: 'Just for you');
+  final specialOfferMessage = TextEditingController(text: 'More scheduled delivery slots are available today.');
+  bool instantEnabled = true, scheduledEnabled = true, specialOfferEnabled = false;
 
   @override void initState() { super.initState(); _load(); }
-  @override void dispose() { bannerUrl.dispose(); heroTitle.dispose(); heroSubtitle.dispose(); deliveryText.dispose(); super.dispose(); }
+  @override void dispose() { bannerUrl.dispose(); heroTitle.dispose(); heroSubtitle.dispose(); deliveryText.dispose(); freeThreshold.dispose(); scheduledPerKm.dispose(); instantBaseFee.dispose(); instantPerKm.dispose(); pilotRadiusKm.dispose(); pilotCenterLat.dispose(); pilotCenterLng.dispose(); scheduledCutoff.dispose(); specialOfferTitle.dispose(); specialOfferMessage.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     try {
       final b = await FirebaseFirestore.instance.collection('settings').doc('banners').get();
       final h = await FirebaseFirestore.instance.collection('settings').doc('homepage').get();
       final s = await FirebaseFirestore.instance.collection('settings').doc('app').get();
-      final bd = b.data() ?? {}, hd = h.data() ?? {}, sd = s.data() ?? {};
+      final d = await FirebaseFirestore.instance.collection('settings').doc('delivery').get();
+      final bd = b.data() ?? {}, hd = h.data() ?? {}, sd = s.data() ?? {}, dd = d.data() ?? {};
       final raw = bd['imageUrls'];
       banners = raw is List ? raw.map((e) => e.toString()).where((e) => e.trim().isNotEmpty).take(7).toList() : <String>[];
       rotationSeconds = ((bd['rotationSeconds'] is num ? (bd['rotationSeconds'] as num).toInt() : int.tryParse((bd['rotationSeconds'] ?? 4).toString()) ?? 4)).clamp(2, 20).toInt();
@@ -43,6 +55,21 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
       showLocalSellers = hd['showLocalSellers'] != false;
       showTravel = hd['showTravel'] != false;
       codEnabled = sd['codEnabled'] != false;
+      freeThreshold.text = (dd['freeScheduledThreshold'] ?? 499).toString();
+      scheduledPerKm.text = (dd['scheduledPerKm'] ?? 11).toString();
+      instantBaseFee.text = (dd['instantBaseFee'] ?? 35).toString();
+      instantPerKm.text = (dd['instantPerKm'] ?? 11).toString();
+      pilotRadiusKm.text = (dd['pilotRadiusKm'] ?? 4).toString();
+      pilotCenterLat.text = (dd['pilotCenterLat'] ?? '').toString();
+      pilotCenterLng.text = (dd['pilotCenterLng'] ?? '').toString();
+      final cutoffH = (dd['scheduledCutoffHour'] ?? 13).toString().padLeft(2,'0');
+      final cutoffM = (dd['scheduledCutoffMinute'] ?? 30).toString().padLeft(2,'0');
+      scheduledCutoff.text = cutoffH+':'+cutoffM;
+      instantEnabled = dd['instantEnabled'] != false;
+      scheduledEnabled = dd['scheduledEnabled'] != false;
+      specialOfferEnabled = dd['specialOfferEnabled'] == true;
+      specialOfferTitle.text = (dd['specialOfferTitle'] ?? 'Just for you').toString();
+      specialOfferMessage.text = (dd['specialOfferMessage'] ?? 'More scheduled delivery slots are available today.').toString();
     } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
@@ -59,6 +86,27 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
         'showLocalSellers': showLocalSellers, 'showTravel': showTravel, 'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       await FirebaseFirestore.instance.collection('settings').doc('app').set({'codEnabled': codEnabled, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      final cutoffParts=scheduledCutoff.text.trim().split(':');
+      final cutoffHour=int.tryParse(cutoffParts.isNotEmpty?cutoffParts[0]:'13')??13;
+      final cutoffMinute=int.tryParse(cutoffParts.length>1?cutoffParts[1]:'30')??30;
+      await FirebaseFirestore.instance.collection('settings').doc('delivery').set({
+        'deliveryEnabled': true,
+        'instantEnabled': instantEnabled,
+        'scheduledEnabled': scheduledEnabled,
+        'freeScheduledThreshold': double.tryParse(freeThreshold.text.trim())??499,
+        'scheduledPerKm': double.tryParse(scheduledPerKm.text.trim())??11,
+        'instantBaseFee': double.tryParse(instantBaseFee.text.trim())??35,
+        'instantPerKm': double.tryParse(instantPerKm.text.trim())??11,
+        'scheduledCutoffHour': cutoffHour.clamp(0,23),
+        'scheduledCutoffMinute': cutoffMinute.clamp(0,59),
+        'pilotRadiusKm': double.tryParse(pilotRadiusKm.text.trim())??4,
+        'pilotCenterLat': double.tryParse(pilotCenterLat.text.trim())??0,
+        'pilotCenterLng': double.tryParse(pilotCenterLng.text.trim())??0,
+        'specialOfferEnabled': specialOfferEnabled,
+        'specialOfferTitle': specialOfferTitle.text.trim(),
+        'specialOfferMessage': specialOfferMessage.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(label + ' saved.')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: ' + e.toString())));
@@ -131,6 +179,41 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
     SwitchListTile(title:const Text('Travel shortcut'),value:showTravel,onChanged:(v)=>setState(()=>showTravel=v)),
   ]));
 
+  Widget _deliverySettings() => _card('Delivery & Scheduling','Control pilot-zone distance pricing, free scheduled delivery and the scheduled-order cutoff without shipping a new APK.',Column(children:[
+    Row(children:[
+      Expanded(child:TextField(controller:freeThreshold,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Free scheduled threshold (₹)'))),
+      const SizedBox(width:10),
+      Expanded(child:TextField(controller:pilotRadiusKm,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Pilot radius (km)'))),
+    ]),
+    const SizedBox(height:10),
+    Row(children:[
+      Expanded(child:TextField(controller:scheduledPerKm,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Scheduled ₹ / km'))),
+      const SizedBox(width:10),
+      Expanded(child:TextField(controller:instantBaseFee,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Instant base fee (₹)'))),
+    ]),
+    const SizedBox(height:10),
+    TextField(controller:instantPerKm,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Instant ₹ / km')),
+    const SizedBox(height:10),
+    TextField(controller:scheduledCutoff,keyboardType:TextInputType.datetime,decoration:const InputDecoration(labelText:'Scheduled cutoff (HH:MM)',helperText:'Default 13:30. After this time only Instant Delivery is available.')),
+    const Divider(height:26),
+    const Align(alignment:Alignment.centerLeft,child:Text('Pilot market center',style:TextStyle(fontWeight:FontWeight.w900))),
+    const SizedBox(height:4),
+    const Align(alignment:Alignment.centerLeft,child:Text('Enter the market latitude and longitude used as the 4 km pilot-zone center.',style:TextStyle(color:Colors.grey,fontSize:12))),
+    const SizedBox(height:10),
+    Row(children:[
+      Expanded(child:TextField(controller:pilotCenterLat,keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),decoration:const InputDecoration(labelText:'Market latitude'))),
+      const SizedBox(width:10),
+      Expanded(child:TextField(controller:pilotCenterLng,keyboardType:const TextInputType.numberWithOptions(decimal:true,signed:true),decoration:const InputDecoration(labelText:'Market longitude'))),
+    ]),
+    const Divider(height:26),
+    SwitchListTile(title:const Text('Instant delivery'),subtitle:const Text('Base ₹35 + per-km charge.'),value:instantEnabled,onChanged:(v)=>setState(()=>instantEnabled=v)),
+    SwitchListTile(title:const Text('Scheduled delivery'),subtitle:const Text('Free when the item total reaches the threshold.'),value:scheduledEnabled,onChanged:(v)=>setState(()=>scheduledEnabled=v)),
+    SwitchListTile(title:const Text('Special scheduled-delivery offer'),subtitle:const Text('Show a customer-facing message when you want to encourage scheduled orders.'),value:specialOfferEnabled,onChanged:(v)=>setState(()=>specialOfferEnabled=v)),
+    TextField(controller:specialOfferTitle,decoration:const InputDecoration(labelText:'Special offer title')),
+    const SizedBox(height:10),
+    TextField(controller:specialOfferMessage,maxLines:2,decoration:const InputDecoration(labelText:'Special offer message')),
+  ]));
+
   @override Widget build(BuildContext context){
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     final section=widget.section;
@@ -139,7 +222,7 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
       body:ListView(padding:const EdgeInsets.fromLTRB(16,14,16,28),children:[
         if(section=='Manage Banners')_banners(),
         if(section=='Homepage & Content')_homepage(),
-        if(section=='App Settings')...[_banners(),_homepage(),_card('Order settings','Platform-level defaults.',SwitchListTile(title:const Text('Cash on Delivery'),subtitle:const Text('Keep COD enabled for ALLways managed shopping.'),value:codEnabled,onChanged:(v)=>setState(()=>codEnabled=v)))],
+        if(section=='App Settings')...[_banners(),_homepage(),_deliverySettings(),_card('Order settings','Platform-level defaults.',SwitchListTile(title:const Text('Cash on Delivery'),subtitle:const Text('Keep COD enabled for ALLways managed shopping.'),value:codEnabled,onChanged:(v)=>setState(()=>codEnabled=v)))],
         FilledButton.icon(onPressed:saving?null:()=>_save(section),icon:const Icon(Icons.save_outlined),label:Text(saving?'Saving…':'Save changes')),
       ]),
     );
