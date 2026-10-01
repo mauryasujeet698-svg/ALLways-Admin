@@ -15,11 +15,16 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
   static const String _endpoint =
       'https://script.google.com/macros/s/AKfycbxnmGS7Q6t7pPWiT50V87JmA0Qbh2tSi1UKLFzN28dQpybjw7vvCufnryi-qpTnq0b0IA/exec';
 
+  final TextEditingController _endpointController = TextEditingController();
+  static const String _defaultEndpoint = _endpoint;
   bool _busy = false;
   int _productCount = 0;
   int _inventoryCount = 0;
   String? _lastSyncText;
   String? _error;
+
+  @override
+  void dispose() { _endpointController.dispose(); super.dispose(); }
 
   @override
   void initState() {
@@ -68,12 +73,13 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
     });
 
     try {
-      if (_endpoint.isEmpty) {
+      final endpoint = _endpointController.text.trim();
+      if (endpoint.isEmpty) {
         throw Exception('Enter the deployed Google Apps Script /exec URL first.');
       }
       final response = await http
           .get(
-            Uri.parse(_endpoint),
+            Uri.parse(endpoint),
             headers: const {'Accept': 'application/json'},
           )
           .timeout(const Duration(seconds: 30));
