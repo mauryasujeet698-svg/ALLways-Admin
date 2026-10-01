@@ -532,3 +532,78 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
     ]);
   }
 }
+
+
+class _AdminOrdersFilterView extends StatefulWidget{
+  final String role,feature; final User user; final Color accent;
+  final Future<void> Function(BuildContext,QueryDocumentSnapshot<Map<String,dynamic>>) onAssign;
+  const _AdminOrdersFilterView({required this.role,required this.feature,required this.user,required this.accent,required this.onAssign});
+  @override State<_AdminOrdersFilterView> createState()=>_AdminOrdersFilterViewState();
+}
+class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
+  String filter='All';
+  DateTime _time(dynamic v)=>v is Timestamp?v.toDate():v is DateTime?v:DateTime.fromMillisecondsSinceEpoch(v is num?v.toInt():0);
+  num _num(dynamic v)=>v is num?v:num.tryParse((v??'').toString())??0;
+  bool _done(dynamic v){final s=(v??'').toString().toLowerCase();return s=='delivered'||s=='completed';}
+  Widget _empty(String a,String b)=>Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(children:[const Icon(Icons.inbox_outlined,size:42),const SizedBox(height:8),Text(a,style:const TextStyle(fontWeight:FontWeight.w800)),Text(b,style:const TextStyle(color:Colors.grey))])));
+  void _showItems(BuildContext context,Map<String,dynamic> o){
+    final raw=o['items'];final items=raw is List?raw.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList():<Map<String,dynamic>>[];
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('Order items',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:10),
+      if(items.isEmpty)const Text('No item details were saved with this order.'),
+      ...items.map((x)=>ListTile(dense:true,leading:const Icon(Icons.inventory_2_outlined),title:Text((x['name']??x['title']??'Item').toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('Qty: '+(x['qty']??x['quantity']??1).toString()),trailing:Text('₹'+_num(x['price']).toStringAsFixed(0)))),
+      const Divider(),Align(alignment:Alignment.centerRight,child:Text('Total: ₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900))),
+    ]))));
+  }
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
+    stream:FirebaseFirestore.instance.collection('orders').snapshots(),
+    builder:(context,snap){
+      if(snap.hasError)return const Center(child:Text('Could not load orders.'));
+      if(!snap.hasData)return const Center(child:CircularProgressIndicator());
+      var docs=snap.data!.docs.where((d){
+        final o=d.data();final s=(o['status']??'').toString().toLowerCase();
+        if(widget.role=='seller')return (o['sellerId']??o['sellerUid']??'').toString()==widget.user.uid;
+        if(widget.role=='delivery_partner'||widget.role=='carrier')return (o['carrierUid']??'').toString()==widget.user.uid;
+        if(widget.feature=='Ride History')return s=='completed'||s=='delivered';
+        return s!='cancelled';
+      }).toList();
+      docs.sort((a,b)=>_time(b.data()['createdAt']).compareTo(_time(a.data()['createdAt'])));
+      final filtered=docs.where((d){
+        final s=(d.data()['status']??'').toString().toLowerCase();
+        if(filter=='New Order')return s=='new order'||s=='new'||s=='pending';
+        if(filter=='Confirmed')return s.contains('confirm');
+        if(filter=='Preparing')return s.contains('prepar');
+        if(filter=='Assigned')return s=='assigned';
+        if(filter=='Out for delivery')return s=='out for delivery'||s=='out_for_delivery';
+        if(filter=='Delivered')return s=='delivered'||s=='completed';
+        if(filter=='Cancelled')return s=='cancelled';
+        return true;
+      }).toList();
+      const statuses=['All','New Order','Confirmed','Preparing','Assigned','Out for delivery','Delivered','Cancelled'];
+      final attention=docs.where((d)=>['new order','pending','pending_acceptance','confirmed'].contains((d.data()['status']??'').toString().toLowerCase())).length;
+      final completed=docs.where((d)=>_done(d.data()['status'])).length;
+      return ListView(padding:const EdgeInsets.fromLTRB(16,14,16,28),children:[
+        Card(elevation:0,color:widget.accent.withOpacity(.08),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(backgroundColor:widget.accent.withOpacity(.14),child:Icon(Icons.receipt_long,color:widget.accent)),const SizedBox(width:12),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Manage Orders',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),Text('Filter by order status and open item details.',style:TextStyle(color:Colors.black54))]))]))),
+        const SizedBox(height:12),
+        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:statuses.map((s)=>Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(s),selected:filter==s,onSelected:(_){setState(()=>filter=s);})) ).toList())),
+        const SizedBox(height:12),
+        Row(children:[
+          Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.receipt_long),const SizedBox(height:5),Text(filtered.length.toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const Text('Showing',style:TextStyle(fontSize:11,color:Colors.grey))])))),
+          Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.priority_high),const SizedBox(height:5),Text(attention.toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const Text('Needs attention',style:TextStyle(fontSize:11,color:Colors.grey))])))),
+          Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.check_circle),const SizedBox(height:5),Text(completed.toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const Text('Completed',style:TextStyle(fontSize:11,color:Colors.grey))])))),
+        ]),
+        const SizedBox(height:12),
+        if(filtered.isEmpty)_empty('Nothing here yet','No orders match this status.')
+        else ...filtered.map((d){final o=d.data();final id=(o['id']??d.id).toString();final status=(o['status']??'New Order').toString();final assigned=(o['carrierName']??'').toString().trim();final raw=o['items'];final count=raw is List?raw.length:0;
+          return Card(elevation:0,child:ListTile(
+            leading:CircleAvatar(backgroundColor:widget.accent.withOpacity(.1),child:Icon(Icons.receipt_long,color:widget.accent)),
+            title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
+            subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status+(count>0?' • '+count.toString()+' item'+(count==1?'':'s'):'')+(assigned.isEmpty?'':' • Assigned: '+assigned)),
+            trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[Text('₹'+_num(o['total']).toStringAsFixed(0),style:const TextStyle(fontWeight:FontWeight.w900)),if(widget.role=='admin'&&status.toLowerCase()!='cancelled'&&status.toLowerCase()!='delivered')TextButton(onPressed:()=>widget.onAssign(context,d),child:Text(assigned.isEmpty?'Assign':'Reassign'))]),
+            onTap:()=>_showItems(context,o),
+          ));
+        }),
+      ]);
+    },
+  );
+}
