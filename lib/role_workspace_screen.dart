@@ -426,7 +426,56 @@ class RoleFeatureScreen extends StatelessWidget {
   Widget _support(BuildContext context)=>_page([_hero('Help & Support','Create a support request and keep it attached to your account.'),FilledButton.icon(onPressed:()=>_createTicket(context),icon:const Icon(Icons.support_agent),label:const Text('Contact ALLways support')),const SizedBox(height:12),_infoTile('Order issue','Report a delivery, customer or order problem.'),_infoTile('Account help','Get help with profile, verification or access.')]);
   Future<void> _createTicket(BuildContext context)async{final c=TextEditingController();final ok=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:const Text('Support request'),content:TextField(controller:c,maxLines:4,decoration:const InputDecoration(hintText:'Describe the issue')),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Send'))]));if(ok==true&&c.text.trim().isNotEmpty){await FirebaseFirestore.instance.collection('support_tickets').add({'uid':user.uid,'role':role,'message':c.text.trim(),'status':'open','createdAt':FieldValue.serverTimestamp()});if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Support request submitted.')));}}
 
-  Widget _announcement(BuildContext context){final title=TextEditingController(),body=TextEditingController();return _page([_hero('Send Notifications','Create an announcement record for ALLways users.'),TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),const SizedBox(height:10),TextField(controller:body,maxLines:4,decoration:const InputDecoration(labelText:'Message')),const SizedBox(height:12),FilledButton.icon(onPressed:()async{if(title.text.trim().isEmpty||body.text.trim().isEmpty)return;await FirebaseFirestore.instance.collection('announcements').add({'title':title.text.trim(),'body':body.text.trim(),'type':'announcement','createdAt':FieldValue.serverTimestamp(),'createdBy':user.uid});if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Announcement saved.')));},icon:const Icon(Icons.campaign),label:const Text('Publish announcement'))]);}
+  Widget _announcement(BuildContext context){
+    final title=TextEditingController();
+    final body=TextEditingController();
+    String audience='all_users';
+
+    return StatefulBuilder(
+      builder:(context,setLocalState)=>_page([
+        _hero('Send Notifications','Create an announcement and route it to the selected ALLways audience.'),
+        TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),
+        const SizedBox(height:10),
+        TextField(controller:body,maxLines:4,decoration:const InputDecoration(labelText:'Message')),
+        const SizedBox(height:10),
+        DropdownButtonFormField<String>(
+          value:audience,
+          decoration:const InputDecoration(labelText:'Audience'),
+          items:const [
+            DropdownMenuItem(value:'all_users',child:Text('All users')),
+            DropdownMenuItem(value:'admins',child:Text('Admins')),
+            DropdownMenuItem(value:'carriers',child:Text('Carriers')),
+            DropdownMenuItem(value:'delivery_partners',child:Text('Delivery partners')),
+            DropdownMenuItem(value:'customers',child:Text('Customers')),
+          ],
+          onChanged:(value){
+            if(value!=null)setLocalState(()=>audience=value);
+          },
+        ),
+        const SizedBox(height:12),
+        FilledButton.icon(
+          onPressed:()async{
+            if(title.text.trim().isEmpty||body.text.trim().isEmpty)return;
+            await FirebaseFirestore.instance.collection('announcements').add({
+              'title':title.text.trim(),
+              'body':body.text.trim(),
+              'type':'announcement',
+              'topic':audience,
+              'targetAudience':audience,
+              'createdAt':FieldValue.serverTimestamp(),
+              'createdBy':user.uid,
+              'status':'queued',
+            });
+            if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content:Text('Announcement queued for notification delivery.')),
+            );
+          },
+          icon:const Icon(Icons.campaign),
+          label:const Text('Publish announcement'),
+        ),
+      ]),
+    );
+  }
 
   Widget _account(BuildContext context)=>_page([_hero(feature,'Account controls for this role.'),Card(child:ListTile(leading:const Icon(Icons.email_outlined),title:const Text('Approved email'),subtitle:Text(user.email??'Not available'))),Card(child:ListTile(leading:const Icon(Icons.logout),title:const Text('Sign out'),onTap:()=>FirebaseAuth.instance.signOut()))]);
 
