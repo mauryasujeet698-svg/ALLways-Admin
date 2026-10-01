@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
+bool _adminNotificationListenerAttached = false;
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -55,7 +56,10 @@ Future<void> setupAdminNotifications(User user) async {
     }
 
     await saveToken(await FirebaseMessaging.instance.getToken());
-    FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+    if (!_adminNotificationListenerAttached) {
+      _adminNotificationListenerAttached = true;
+      FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+    }
   } catch (_) {}
 }
 
