@@ -84,7 +84,7 @@ class RoleFeatureScreen extends StatelessWidget {
               child:ListTile(
                 leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Icon(role=='carrier'?Icons.two_wheeler:Icons.receipt_long,color:accent)),
                 title:Text('#'+id,style:const TextStyle(fontWeight:FontWeight.w800)),
-                subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status+(assignedName.isEmpty?'':' • Assigned: '+assignedName)),
+                subtitle:Text((o['name']??o['customerName']??'Customer').toString()+' • '+status+(o['deliveryType']=='scheduled'?' • Scheduled':' • Instant')+(assignedName.isEmpty?'':' • Assigned: '+assignedName)),
                 trailing:Column(
                   mainAxisAlignment:MainAxisAlignment.center,
                   crossAxisAlignment:CrossAxisAlignment.end,
