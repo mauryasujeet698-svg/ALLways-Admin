@@ -13,7 +13,6 @@ bool _adminNotificationListenerAttached = false;
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  await GoogleSignIn.instance.initialize();
 }
 
 Future<void> setupAdminNotifications(User user) async {
