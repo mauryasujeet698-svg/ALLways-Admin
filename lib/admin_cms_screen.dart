@@ -222,6 +222,7 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
       body:ListView(padding:const EdgeInsets.fromLTRB(16,14,16,28),children:[
         if(section=='Manage Banners')_banners(),
         if(section=='Homepage & Content')_homepage(),
+        if(section=='Delivery Settings')_deliverySettings(),
         if(section=='App Settings')...[_banners(),_homepage(),_deliverySettings(),_card('Order settings','Platform-level defaults.',SwitchListTile(title:const Text('Cash on Delivery'),subtitle:const Text('Keep COD enabled for ALLways managed shopping.'),value:codEnabled,onChanged:(v)=>setState(()=>codEnabled=v)))],
         FilledButton.icon(onPressed:saving?null:()=>_save(section),icon:const Icon(Icons.save_outlined),label:Text(saving?'Saving…':'Save changes')),
       ]),
