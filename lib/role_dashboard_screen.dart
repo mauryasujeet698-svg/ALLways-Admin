@@ -51,9 +51,18 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   List<_Action> get actions=>switch(widget.role){
     'admin'=>const[
-      _Action('Manage Orders',Icons.receipt_long,'Operations'),_Action('Catalog Sync',Icons.sync,'Operations'),_Action('Manage Delivery Partners',Icons.local_shipping,'Operations'),_Action('Manage Carriers',Icons.two_wheeler,'Operations'),_Action('Manage Sellers',Icons.storefront,'Operations'),
-      _Action('Manage Banners',Icons.view_carousel,'Content'),_Action('Homepage & Content',Icons.home_work,'Content'),_Action('Send Notifications',Icons.campaign,'Content'),
-      _Action('Users & Roles',Icons.manage_accounts,'People'),_Action('Reports & Analytics',Icons.analytics,'Analytics'),_Action('App Settings',Icons.settings,'Settings'),
+      _Action('Manage Orders',Icons.receipt_long,'Orders & Dispatch'),
+      _Action('Delivery Requests',Icons.local_shipping,'Orders & Dispatch'),
+      _Action('Manage Carriers',Icons.two_wheeler,'Partners'),
+      _Action('Manage Delivery Partners',Icons.delivery_dining,'Partners'),
+      _Action('Manage Sellers',Icons.storefront,'Partners'),
+      _Action('Catalog Sync',Icons.sync,'Catalog & Content'),
+      _Action('Manage Banners',Icons.view_carousel,'Catalog & Content'),
+      _Action('Homepage & Content',Icons.home_work,'Catalog & Content'),
+      _Action('Send Notifications',Icons.campaign,'Communication'),
+      _Action('Users & Roles',Icons.manage_accounts,'People & Access'),
+      _Action('Reports & Analytics',Icons.analytics,'Analytics & Finance'),
+      _Action('App Settings',Icons.settings,'System'),
     ],
     'seller'=>const[
       _Action('Products',Icons.inventory_2,'Store'),_Action('Inventory',Icons.fact_check,'Store'),_Action('Shop Profile',Icons.storefront,'Store'),_Action('Orders',Icons.receipt_long,'Orders'),
@@ -165,9 +174,9 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   Widget _categoryPage(String category){
     final items=actions.where((x){
-      if(category=='Operations')return x.group=='Operations'||x.group=='Work'||x.group=='Rides'||x.group=='Store'||x.group=='Orders';
-      if(category=='Analytics')return x.group=='Analytics'||x.group=='Growth'||x.group=='Performance'||x.group=='Finance';
-      return x.group=='Account'||x.group=='Safety'||x.group=='Content'||x.group=='People'||x.group=='Settings'||x.group=='Account';
+      if(category=='Operations')return x.group=='Orders & Dispatch'||x.group=='Partners'||x.group=='Catalog & Content'||x.group=='Communication'||x.group=='People & Access';
+      if(category=='Analytics')return x.group=='Analytics & Finance'||x.group=='Analytics'||x.group=='Growth'||x.group=='Performance'||x.group=='Finance';
+      return x.group=='System'||x.group=='Account'||x.group=='Safety'||x.group=='Content'||x.group=='People'||x.group=='Settings';
     }).toList();
     return ListView(padding:const EdgeInsets.fromLTRB(16,22,16,28),children:[
       Text(category,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900)),const SizedBox(height:5),Text('Everything is organized by task so every option has a clear destination.',style:const TextStyle(color:Colors.grey)),const SizedBox(height:16),
