@@ -578,11 +578,51 @@ class _AdminOrdersFilterView extends StatefulWidget{
   @override State<_AdminOrdersFilterView> createState()=>_AdminOrdersFilterViewState();
 }
 class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
-  String filter='All';
+  String statusFilter='All',dateFilter='All time';
+  DateTime? customStart,customEnd;
   DateTime _time(dynamic v)=>v is Timestamp?v.toDate():v is DateTime?v:DateTime.fromMillisecondsSinceEpoch(v is num?v.toInt():0);
   num _num(dynamic v)=>v is num?v:num.tryParse((v??'').toString())??0;
   bool _done(dynamic v){final s=(v??'').toString().toLowerCase();return s=='delivered'||s=='completed';}
   Widget _empty(String a,String b)=>Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(children:[const Icon(Icons.inbox_outlined,size:42),const SizedBox(height:8),Text(a,style:const TextStyle(fontWeight:FontWeight.w800)),Text(b,style:const TextStyle(color:Colors.grey))])));
+  bool _inDate(DateTime dt){
+    final now=DateTime.now();
+    final day=DateTime(dt.year,dt.month,dt.day);
+    final today=DateTime(now.year,now.month,now.day);
+    if(dateFilter=='Today')return day==today;
+    if(dateFilter=='Yesterday')return day==today.subtract(const Duration(days:1));
+    if(dateFilter=='Last 7 days')return !day.isBefore(today.subtract(const Duration(days:6)))&&!day.isAfter(today);
+    if(dateFilter=='Last week'){
+      final monday=today.subtract(Duration(days:today.weekday-1));
+      final start=monday.subtract(const Duration(days:7));
+      final end=monday.subtract(const Duration(days:1));
+      return !day.isBefore(start)&&!day.isAfter(end);
+    }
+    if(dateFilter=='This month')return dt.year==now.year&&dt.month==now.month;
+    if(dateFilter=='Last month'){
+      final firstThis=DateTime(now.year,now.month,1);
+      final lastPrevious=firstThis.subtract(const Duration(days:1));
+      return dt.year==lastPrevious.year&&dt.month==lastPrevious.month;
+    }
+    if(dateFilter=='This year')return dt.year==now.year;
+    if(dateFilter=='Custom'&&customStart!=null&&customEnd!=null){
+      final start=DateTime(customStart!.year,customStart!.month,customStart!.day);
+      final end=DateTime(customEnd!.year,customEnd!.month,customEnd!.day,23,59,59);
+      return !dt.isBefore(start)&&!dt.isAfter(end);
+    }
+    return true;
+  }
+  Future<void> _pickCustomRange() async{
+    final now=DateTime.now();
+    final picked=await showDateRangePicker(
+      context:context,
+      firstDate:DateTime(2020),
+      lastDate:DateTime(now.year,now.month,now.day),
+      initialDateRange:customStart!=null&&customEnd!=null?DateTimeRange(start:customStart!,end:customEnd!):DateTimeRange(start:todayMinus(now,7),end:now),
+    );
+    if(picked==null||!mounted)return;
+    setState((){customStart=picked.start;customEnd=picked.end;dateFilter='Custom';});
+  }
+  DateTime todayMinus(DateTime d,int days)=>DateTime(d.year,d.month,d.day).subtract(Duration(days:days));
   void _showItems(BuildContext context,Map<String,dynamic> o){
     final raw=o['items'];final items=raw is List?raw.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList():<Map<String,dynamic>>[];
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -605,24 +645,32 @@ class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
         return true;
       }).toList();
       docs.sort((a,b)=>_time(b.data()['createdAt']).compareTo(_time(a.data()['createdAt'])));
-      final filtered=docs.where((d){
+      final dateDocs=docs.where((d)=>_inDate(_time(d.data()['createdAt']))).toList();
+      final filtered=dateDocs.where((d){
         final s=(d.data()['status']??'').toString().toLowerCase();
-        if(filter=='New Order')return s=='new order'||s=='new'||s=='pending';
-        if(filter=='Confirmed')return s.contains('confirm');
-        if(filter=='Preparing')return s.contains('prepar');
-        if(filter=='Assigned')return s=='assigned';
-        if(filter=='Out for delivery')return s=='out for delivery'||s=='out_for_delivery';
-        if(filter=='Delivered')return s=='delivered'||s=='completed';
-        if(filter=='Cancelled')return s=='cancelled';
+        if(statusFilter=='New Order')return s=='new order'||s=='new'||s=='pending';
+        if(statusFilter=='Confirmed')return s.contains('confirm');
+        if(statusFilter=='Preparing')return s.contains('prepar');
+        if(statusFilter=='Assigned')return s=='assigned';
+        if(statusFilter=='Out for delivery')return s=='out for delivery'||s=='out_for_delivery';
+        if(statusFilter=='Delivered')return s=='delivered'||s=='completed';
+        if(statusFilter=='Cancelled')return s=='cancelled';
         return true;
       }).toList();
       const statuses=['All','New Order','Confirmed','Preparing','Assigned','Out for delivery','Delivered','Cancelled'];
-      final attention=docs.where((d)=>['new order','pending','pending_acceptance','confirmed'].contains((d.data()['status']??'').toString().toLowerCase())).length;
-      final completed=docs.where((d)=>_done(d.data()['status'])).length;
+      const dates=['All time','Today','Yesterday','Last 7 days','Last week','This month','Last month','This year','Custom'];
+      final attention=dateDocs.where((d)=>['new order','pending','pending_acceptance','confirmed'].contains((d.data()['status']??'').toString().toLowerCase())).length;
+      final completed=dateDocs.where((d)=>_done(d.data()['status'])).length;
       return ListView(padding:const EdgeInsets.fromLTRB(16,14,16,28),children:[
-        Card(elevation:0,color:widget.accent.withOpacity(.08),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(backgroundColor:widget.accent.withOpacity(.14),child:Icon(Icons.receipt_long,color:widget.accent)),const SizedBox(width:12),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Manage Orders',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),Text('Filter by order status and open item details.',style:TextStyle(color:Colors.black54))]))]))),
+        Card(elevation:0,color:widget.accent.withOpacity(.08),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(backgroundColor:widget.accent.withOpacity(.14),child:Icon(Icons.receipt_long,color:widget.accent)),const SizedBox(width:12),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Manage Orders',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),Text('Filter orders by status, date, and open item details.',style:TextStyle(color:Colors.black54))]))]))),
         const SizedBox(height:12),
-        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:statuses.map((s)=>Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(s),selected:filter==s,onSelected:(_){setState(()=>filter=s);})) ).toList())),
+        const Text('Order status',style:TextStyle(fontWeight:FontWeight.w800)),
+        const SizedBox(height:6),
+        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:statuses.map((s)=>Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(s),selected:statusFilter==s,onSelected:(_){setState(()=>statusFilter=s);})) ).toList())),
+        const SizedBox(height:10),
+        Row(children:[const Icon(Icons.date_range_outlined,size:19),const SizedBox(width:7),const Text('Date range',style:TextStyle(fontWeight:FontWeight.w800)),const Spacer(),if(dateFilter=='Custom')TextButton(onPressed:_pickCustomRange,child:const Text('Change'))]),
+        const SizedBox(height:6),
+        SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:dates.map((s)=>Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(label:Text(s),selected:dateFilter==s,onSelected:(_){if(s=='Custom'){_pickCustomRange();}else{setState(()=>dateFilter=s);}}))).toList())),
         const SizedBox(height:12),
         Row(children:[
           Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.receipt_long),const SizedBox(height:5),Text(filtered.length.toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const Text('Showing',style:TextStyle(fontSize:11,color:Colors.grey))])))),
@@ -630,7 +678,7 @@ class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
           Expanded(child:Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.check_circle),const SizedBox(height:5),Text(completed.toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const Text('Completed',style:TextStyle(fontSize:11,color:Colors.grey))])))),
         ]),
         const SizedBox(height:12),
-        if(filtered.isEmpty)_empty('Nothing here yet','No orders match this status.')
+        if(filtered.isEmpty)_empty('Nothing here yet','No orders match these filters.')
         else ...filtered.map((d){final o=d.data();final id=(o['id']??d.id).toString();final status=(o['status']??'New Order').toString();final assigned=(o['carrierName']??'').toString().trim();final raw=o['items'];final count=raw is List?raw.length:0;
           return Card(elevation:0,child:ListTile(
             leading:CircleAvatar(backgroundColor:widget.accent.withOpacity(.1),child:Icon(Icons.receipt_long,color:widget.accent)),
