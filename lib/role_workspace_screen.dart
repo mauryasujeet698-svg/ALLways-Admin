@@ -565,7 +565,7 @@ class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
         if(widget.role=='seller')return (o['sellerId']??o['sellerUid']??'').toString()==widget.user.uid;
         if(widget.role=='delivery_partner'||widget.role=='carrier')return (o['carrierUid']??'').toString()==widget.user.uid;
         if(widget.feature=='Ride History')return s=='completed'||s=='delivered';
-        return s!='cancelled';
+        return true;
       }).toList();
       docs.sort((a,b)=>_time(b.data()['createdAt']).compareTo(_time(a.data()['createdAt'])));
       final filtered=docs.where((d){
