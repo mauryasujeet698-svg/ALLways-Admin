@@ -290,9 +290,28 @@ class RoleFeatureScreen extends StatelessWidget {
                       x['dutyStatus'] ??
                       'active')
                   .toString();
+              final available = partnerCollection &&
+                  (x['approvalStatus'] ?? '').toString().toLowerCase() == 'approved' &&
+                  (x['status'] ?? x['dutyStatus'] ?? '').toString().toLowerCase() == 'online' &&
+                  x['availableForDeliveries'] != false &&
+                  (x['currentOrderId'] ?? '').toString().trim().isEmpty &&
+                  (x['pendingOrderId'] ?? '').toString().trim().isEmpty;
 
               return Card(
                 child: ListTile(
+                  leading: partnerCollection
+                      ? Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const CircleAvatar(child: Icon(Icons.local_shipping_outlined)),
+                            if (available)
+                              Positioned(right: -1, bottom: -1, child: Container(
+                                width: 12, height: 12,
+                                decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                              )),
+                          ],
+                        )
+                      : null,
                   title: Text(name,
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: Text(
@@ -663,6 +682,33 @@ class _AdminOrdersFilterViewState extends State<_AdminOrdersFilterView>{
       final completed=dateDocs.where((d)=>_done(d.data()['status'])).length;
       return ListView(padding:const EdgeInsets.fromLTRB(16,14,16,28),children:[
         Card(elevation:0,color:widget.accent.withOpacity(.08),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[CircleAvatar(backgroundColor:widget.accent.withOpacity(.14),child:Icon(Icons.receipt_long,color:widget.accent)),const SizedBox(width:12),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Manage Orders',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900)),Text('Filter orders by status, date, and open item details.',style:TextStyle(color:Colors.black54))]))]))),
+        const SizedBox(height:12),
+        StreamBuilder<DocumentSnapshot<Map<String,dynamic>>>(
+          stream:FirebaseFirestore.instance.collection('settings').doc('deliveryAssignment').snapshots(),
+          builder:(context,assignmentSnap){
+            final mode=(assignmentSnap.data?.data()?['mode']??'manual').toString().toLowerCase();
+            final automatic=mode=='automatic';
+            return Card(
+              elevation:0,
+              child:SwitchListTile(
+                contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:2),
+                secondary:Icon(automatic?Icons.auto_awesome:Icons.touch_app_outlined,color:widget.accent),
+                title:const Text('Delivery assignment',style:TextStyle(fontWeight:FontWeight.w800)),
+                subtitle:Text(automatic
+                    ? 'Automatic: assign new orders to an available delivery partner.'
+                    : 'Manual: Admin assigns each delivery partner.'),
+                value:automatic,
+                onChanged:(value)async{
+                  await FirebaseFirestore.instance.collection('settings').doc('deliveryAssignment').set({
+                    'mode':value?'automatic':'manual',
+                    'updatedAt':FieldValue.serverTimestamp(),
+                    'updatedBy':widget.user.uid,
+                  },SetOptions(merge:true));
+                },
+              ),
+            );
+          },
+        ),
         const SizedBox(height:12),
         const Text('Order status',style:TextStyle(fontWeight:FontWeight.w800)),
         const SizedBox(height:6),
