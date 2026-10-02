@@ -132,6 +132,8 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
         },SetOptions(merge:true));
       }
       await batch.commit();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(label + ' saved.')));
+    } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: ' + e.toString())));
     } finally { if (mounted) setState(() => saving = false); }
   }
