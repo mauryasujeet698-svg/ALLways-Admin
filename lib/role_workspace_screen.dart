@@ -100,8 +100,30 @@ class RoleFeatureScreen extends StatelessWidget {
                 final name=(x['name']??x['displayName']??x['email']??d.id).toString();
                 final status=(x['status']??x['dutyStatus']??'offline').toString();
                 final vehicle=(x['vehicleType']??'bike').toString();
+                final available =
+                    (x['approvalStatus']??'').toString().toLowerCase()=='approved' &&
+                    (x['status']??x['dutyStatus']??'').toString().toLowerCase()=='online' &&
+                    x['availableForDeliveries'] != false &&
+                    (x['currentOrderId']??'').toString().trim().isEmpty &&
+                    (x['pendingOrderId']??'').toString().trim().isEmpty;
                 return ListTile(
-                  leading:const CircleAvatar(child:Icon(Icons.local_shipping_outlined)),
+                  leading:Stack(
+                    clipBehavior:Clip.none,
+                    children:[
+                      const CircleAvatar(child:Icon(Icons.local_shipping_outlined)),
+                      if(available)Positioned(
+                        right:-1,bottom:-1,
+                        child:Container(
+                          width:12,height:12,
+                          decoration:BoxDecoration(
+                            color:Colors.green,
+                            shape:BoxShape.circle,
+                            border:Border.all(color:Colors.white,width:2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   title:Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
                   subtitle:Text(status+' • '+vehicle+' • '+(x['phone']??x['mobileNumber']??'').toString()),
                   trailing:const Icon(Icons.chevron_right),
