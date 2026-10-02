@@ -42,7 +42,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
   @override void initState(){super.initState();_load();}
   Future<void> _load()async{
     try{
-      final col=seller?'sellers':carrier?'ridePartners':'customers';
+      final col=seller?'sellers':carrier?'ridePartners':delivery?'deliveryPartners':'customers';
       final snap=await FirebaseFirestore.instance.collection(col).doc(widget.user.uid).get();
       if(mounted)setState(()=>profile=snap.data()??{});
     }catch(_){}
