@@ -69,7 +69,9 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
       final cutoffM = (dd['scheduledCutoffMinute'] ?? 30).toString().padLeft(2,'0');
       scheduledStart.text = ((dd['scheduledStartHour'] ?? 9).toString().padLeft(2,'0'))+':'+((dd['scheduledStartMinute'] ?? 0).toString().padLeft(2,'0'));
       scheduledCutoff.text = cutoffH+':'+cutoffM;
-      final zonePins = zones.docs.map((x)=>x.id).where((x)=>RegExp(r'^\\d{6} = dd['instantEnabled'] != false;
+      final zonePins = zones.docs.map((x)=>x.id).where((x)=>RegExp(r'^\d{6}$').hasMatch(x)).toList()..sort();
+      serviceablePincodes.text = zonePins.isEmpty ? '230502' : zonePins.join(', ');
+      instantEnabled = dd['instantEnabled'] != false;
       scheduledEnabled = dd['scheduledEnabled'] != false;
       specialOfferEnabled = dd['specialOfferEnabled'] == true;
       specialOfferTitle.text = (dd['specialOfferTitle'] ?? 'Just for you').toString();
@@ -118,8 +120,18 @@ class _AdminCmsScreenState extends State<AdminCmsScreen> {
         'specialOfferMessage': specialOfferMessage.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      final pins=serviceablePincodes.text.split(RegExp(r'[,\\s]+')).map((x)=>x.trim()).where((x)=>RegExp(r'^\\d{6}
-    } catch (e) {
+      final pins=serviceablePincodes.text.split(RegExp(r'[,\s]+')).map((x)=>x.trim()).where((x)=>RegExp(r'^\d{6}$').hasMatch(x)).toSet();
+      final existing=await FirebaseFirestore.instance.collection('serviceableZones').get();
+      final batch=FirebaseFirestore.instance.batch();
+      for(final doc in existing.docs){
+        if(!pins.contains(doc.id))batch.delete(doc.reference);
+      }
+      for(final pin in pins){
+        batch.set(FirebaseFirestore.instance.collection('serviceableZones').doc(pin),{
+          'pincode':pin,'status':'serviceable','updatedAt':FieldValue.serverTimestamp(),
+        },SetOptions(merge:true));
+      }
+      await batch.commit();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save: ' + e.toString())));
     } finally { if (mounted) setState(() => saving = false); }
   }
