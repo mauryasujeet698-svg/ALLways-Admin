@@ -51,6 +51,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   List<_Action> get actions=>switch(widget.role){
     'admin'=>const[
+      _Action('Live Tracking',Icons.gps_fixed,'Orders & Dispatch'),
       _Action('Manage Orders',Icons.receipt_long,'Orders & Dispatch'),
       _Action('Delivery Requests',Icons.local_shipping,'Orders & Dispatch'),_Action('Delivery & Pricing',Icons.payments_outlined,'Orders & Dispatch'),
        _Action('Ride Pricing',Icons.two_wheeler,'Orders & Dispatch'),
