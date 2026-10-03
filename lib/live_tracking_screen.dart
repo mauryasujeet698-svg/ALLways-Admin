@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
+const _mapboxPublicToken = String.fromEnvironment('MAPBOX_PUBLIC_TOKEN');
+String _mapboxTiles() => 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=' + _mapboxPublicToken;
 
 class AdminLiveTrackingScreen extends StatelessWidget {
   final Color accent;
@@ -18,10 +22,15 @@ class AdminLiveTrackingScreen extends StatelessWidget {
     return 'Updated ${d.inHours}h ago';
   }
 
-  Future<void> openMap(double lat, double lng) async {
+  void openMap(BuildContext context, double lat, double lng, {double customerLat = 0, double customerLng = 0}) {
     if (lat == 0 || lng == 0) return;
-    final uri = Uri.parse('https://www.openstreetmap.org/?mlat=$lat&mlon=$lng#map=17/$lat/$lng');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AdminMapPage(
+        accent: accent,
+        partner: LatLng(lat, lng),
+        customer: customerLat != 0 && customerLng != 0 ? LatLng(customerLat, customerLng) : null,
+      ),
+    ));
   }
 
   Widget card({
@@ -44,7 +53,7 @@ class AdminLiveTrackingScreen extends StatelessWidget {
         subtitle: Text('$status\n${hasLocation ? age(updatedAt) : 'Waiting for live location'}', maxLines: 2),
         isThreeLine: true,
         trailing: hasLocation
-            ? IconButton(tooltip: 'Open live location', onPressed: () => openMap(lat, lng), icon: const Icon(Icons.open_in_new))
+            ? IconButton(tooltip: 'Open live location', onPressed: () => openMap(context, lat, lng), icon: const Icon(Icons.open_in_new))
             : const Icon(Icons.location_searching, color: Colors.grey),
       ),
     );
@@ -128,4 +137,63 @@ class AdminLiveTrackingScreen extends StatelessWidget {
       ),
     ],
   );
+}
+
+
+class AdminMapPage extends StatelessWidget {
+  final Color accent;
+  final LatLng partner;
+  final LatLng? customer;
+  const AdminMapPage({super.key, required this.accent, required this.partner, this.customer});
+
+  @override
+  Widget build(BuildContext context) {
+    final points = [partner, if (customer != null) customer!];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Live Mapbox Tracking')),
+      body: FlutterMap(
+        options: MapOptions(
+          initialCenter: partner,
+          initialZoom: customer == null ? 16 : 14,
+          onMapReady: () {
+            if (points.length > 1) {
+              // Camera fitting is handled after the map has mounted.
+            }
+          },
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: _mapboxTiles(),
+            tileSize: 256,
+            maxZoom: 19,
+            userAgentPackageName: 'com.allways.admin',
+          ),
+          RichAttributionWidget(attributions: const [
+            TextSourceAttribution('© Mapbox © OpenStreetMap'),
+          ]),
+          MarkerLayer(markers: [
+            Marker(
+              point: partner,
+              width: 56,
+              height: 56,
+              child: CircleAvatar(
+                backgroundColor: accent,
+                child: const Icon(Icons.navigation, color: Colors.white),
+              ),
+            ),
+            if (customer != null)
+              Marker(
+                point: customer!,
+                width: 52,
+                height: 52,
+                child: const CircleAvatar(
+                  backgroundColor: Colors.red,
+                  child: Icon(Icons.person_pin_circle, color: Colors.white),
+                ),
+              ),
+          ]),
+        ],
+      ),
+    );
+  }
 }
