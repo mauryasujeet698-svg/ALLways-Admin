@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'role_workspace_screen.dart';
 import 'allways_design.dart';
 
@@ -16,6 +17,7 @@ class RoleDashboardScreen extends StatefulWidget {
 Future<void> _chooseAdminLanguage(BuildContext context) async {
   final prefs = await SharedPreferences.getInstance();
   final current = prefs.getString('app_language') ?? 'English';
+  if (!context.mounted) return;
   final selected = await showDialog<String>(
     context: context,
     builder: (d) => SimpleDialog(
