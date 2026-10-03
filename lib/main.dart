@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
@@ -55,6 +56,14 @@ Future<void> setupAdminNotifications(User user) async {
     }
 
     await saveToken(await FirebaseMessaging.instance.getToken());
+    FirebaseMessaging.onMessage.listen((message) {
+      HapticFeedback.vibrate();
+      SystemSound.play(SystemSoundType.alert);
+      const MethodChannel('allways_notifications').invokeMethod('showNotification', {
+        'title': message.notification?.title ?? message.data['title'] ?? 'ALLways',
+        'body': message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? 'You have a new ALLways update.',
+      }).catchError((_) => null);
+    });
     if (!_adminNotificationListenerAttached) {
       _adminNotificationListenerAttached = true;
       FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
