@@ -13,6 +13,25 @@ class RoleDashboardScreen extends StatefulWidget {
   @override State<RoleDashboardScreen> createState()=>_RoleDashboardScreenState();
 }
 
+Future<void> _chooseAdminLanguage(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  final current = prefs.getString('app_language') ?? 'English';
+  final selected = await showDialog<String>(
+    context: context,
+    builder: (d) => SimpleDialog(
+      title: const Text('Language'),
+      children: [
+        RadioListTile<String>(value:'English',groupValue:current,title:const Text('English'),onChanged:(v)=>Navigator.pop(d,v)),
+        RadioListTile<String>(value:'Hindi',groupValue:current,title:const Text('हिन्दी'),onChanged:(v)=>Navigator.pop(d,v)),
+      ],
+    ),
+  );
+  if(selected!=null){
+    await prefs.setString('app_language',selected);
+    if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Language set to $selected.')));
+  }
+}
+
 class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
   int tab=0;
   Map<String,dynamic> profile={};
@@ -132,6 +151,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     CircleAvatar(radius:29,backgroundColor:accent.withOpacity(.13),child:Text(_name.substring(0,1).toUpperCase(),style:TextStyle(fontSize:23,fontWeight:FontWeight.w900,color:accent))),
     const SizedBox(width:13),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(_name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),Text(_roleLine,style:TextStyle(color:accent,fontWeight:FontWeight.w700,fontSize:12))])),
     if(carrier||delivery)Switch(value:online,onChanged:busyStatus?null:_setOnline),
+    IconButton(tooltip:'Language',onPressed:()=>_chooseAdminLanguage(context),icon:const Icon(Icons.language)),
     if(admin||seller)IconButton(onPressed:()=>open(seller?'Shop Profile':'Users & Roles'),icon:const Icon(Icons.chevron_right)),
   ])));
 
