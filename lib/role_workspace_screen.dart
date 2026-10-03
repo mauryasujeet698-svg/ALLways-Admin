@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'admin_cms_screen.dart';
 import 'catalog_sync_screen.dart';
+import 'ride_pricing_screen.dart';
 
 class RoleFeatureScreen extends StatelessWidget {
   final String role, feature;
@@ -17,7 +18,7 @@ class RoleFeatureScreen extends StatelessWidget {
     'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
     'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
     'Delivery Requests':Icons.local_shipping,'My Deliveries':Icons.assignment_turned_in,'Earnings':Icons.currency_rupee,'Incentives':Icons.card_giftcard,'Performance':Icons.bar_chart,'Documents':Icons.description,'Safety & SOS':Icons.shield,'Help & Support':Icons.support_agent,
-    'Ride Requests':Icons.two_wheeler,'My Rides':Icons.route,'Ratings':Icons.star,'Ride History':Icons.history,'Vehicle & Documents':Icons.description,'Profile & Settings':Icons.person,
+    'Ride Requests':Icons.two_wheeler,'Ride Pricing':Icons.payments_outlined,'My Rides':Icons.route,'Ratings':Icons.star,'Ride History':Icons.history,'Vehicle & Documents':Icons.description,'Profile & Settings':Icons.person,
   }[feature] ?? Icons.dashboard;
 
   @override Widget build(BuildContext context){
@@ -34,6 +35,7 @@ class RoleFeatureScreen extends StatelessWidget {
   Widget _content(BuildContext context){
     if(feature=='Catalog Sync')return const CatalogSyncScreen();
     if(feature=='Delivery & Pricing')return const AdminCmsScreen(section:'Delivery Settings');
+    if(feature=='Ride Pricing')return RidePricingScreen(user:user);
     if(feature=='Manage Orders'||feature=='Orders'||feature=='My Deliveries'||feature=='My Rides'||feature=='Ride History')return _orders(context);
     if(feature=='Ride Requests')return RideRequestsScreen(user:user,accent:accent);
     if(feature=='Delivery Requests')return _requests(context,true);
