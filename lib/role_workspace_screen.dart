@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'admin_cms_screen.dart';
 import 'catalog_sync_screen.dart';
 import 'ride_pricing_screen.dart';
+import 'live_tracking_screen.dart';
 
 class RoleFeatureScreen extends StatelessWidget {
   final String role, feature;
@@ -14,7 +15,7 @@ class RoleFeatureScreen extends StatelessWidget {
 
   IconData get icon => const {
     'Manage Sellers':Icons.storefront,'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
-    'Manage Orders':Icons.receipt_long,'Catalog Sync':Icons.sync,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
+    'Manage Orders':Icons.receipt_long,'Live Tracking':Icons.gps_fixed,'Catalog Sync':Icons.sync,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
     'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
     'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
     'Delivery Requests':Icons.local_shipping,'My Deliveries':Icons.assignment_turned_in,'Earnings':Icons.currency_rupee,'Incentives':Icons.card_giftcard,'Performance':Icons.bar_chart,'Documents':Icons.description,'Safety & SOS':Icons.shield,'Help & Support':Icons.support_agent,
@@ -33,6 +34,7 @@ class RoleFeatureScreen extends StatelessWidget {
   }
 
   Widget _content(BuildContext context){
+    if(feature=='Live Tracking')return AdminLiveTrackingScreen(accent:accent);
     if(feature=='Catalog Sync')return const CatalogSyncScreen();
     if(feature=='Delivery & Pricing')return const AdminCmsScreen(section:'Delivery Settings');
     if(feature=='Ride Pricing')return RidePricingScreen(user:user);
