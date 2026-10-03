@@ -53,6 +53,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     'admin'=>const[
       _Action('Manage Orders',Icons.receipt_long,'Orders & Dispatch'),
       _Action('Delivery Requests',Icons.local_shipping,'Orders & Dispatch'),_Action('Delivery & Pricing',Icons.payments_outlined,'Orders & Dispatch'),
+       _Action('Ride Pricing',Icons.two_wheeler,'Orders & Dispatch'),
       _Action('Manage Carriers',Icons.two_wheeler,'Partners'),
       _Action('Manage Delivery Partners',Icons.delivery_dining,'Partners'),
       _Action('Manage Sellers',Icons.storefront,'Partners'),
