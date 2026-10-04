@@ -3,37 +3,29 @@ package com.allways.admin
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.RingtoneManager
+import android.content.pm.PackageInstaller
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.io.FileInputStream
 
 class MainActivity : FlutterActivity() {
     private val channelId = "allways_updates_v2"
+    private val updaterChannel = "com.allways.admin/apk_installer"
+    private val installAction = "com.allways.admin.PACKAGE_INSTALL_STATUS"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    "allways_updates_v2",
-                    "ALLways Updates",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Order, delivery and ALLways alerts"
-                    setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 250, 120, 250)
-                }
-            )
-        }
+        createChannel()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -45,40 +37,88 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 } else result.notImplemented()
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, updaterChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> installApk(call.argument<String>("path"), result)
+                    "openInstallSettings" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                        } else startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        result.success("opened")
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
-    private fun showNotification(title: String, body: String) {
+    private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    channelId, "ALLways Updates", NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build())
+            getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(channelId, "ALLways Updates", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Order, delivery and ALLways alerts"
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 250, 120, 250)
                 }
             )
         }
+    }
+
+    private fun showNotification(title: String, body: String) {
+        createChannel()
         val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pending = launch?.let {
-            PendingIntent.getActivity(
-                this, (System.currentTimeMillis() and 0x7fffffff).toInt(), it,
-                PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-            )
+            PendingIntent.getActivity(this, (System.currentTimeMillis() and 0x7fffffff).toInt(), it,
+                PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         }
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(body)
+            .setContentTitle(title).setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pending)
-            .build()
+            .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setContentIntent(pending).build()
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify((System.currentTimeMillis() and 0x7fffffff).toInt(), notification)
+    }
+
+    private fun installApk(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) { result.error("NO_APK", "APK path is missing", null); return }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+                startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                result.success("permission_required"); return
+            }
+            val apk=File(path)
+            if (!apk.exists() || apk.length()<=0L) { result.error("NO_APK","Downloaded APK is missing",null); return }
+            val params=PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            params.setAppPackageName(packageName)
+            val sessionId=packageManager.packageInstaller.createSession(params)
+            val session=packageManager.packageInstaller.openSession(sessionId)
+            try {
+                session.openWrite("package",0,apk.length()).use { output ->
+                    FileInputStream(apk).use { input -> input.copyTo(output,1024*1024) }
+                    session.fsync(output)
+                }
+                val intent=Intent(this,InstallStatusReceiver::class.java).apply { action=installAction; putExtra("sessionId",sessionId) }
+                val flags=PendingIntent.FLAG_UPDATE_CURRENT or if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+                session.commit(PendingIntent.getBroadcast(this,sessionId,intent,flags).intentSender)
+                result.success("started")
+            } finally { session.close() }
+        } catch(e:Exception) { result.error("INSTALL_FAILED",e.message ?: "Package installation failed",null) }
+    }
+
+    class InstallStatusReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE) == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                val confirmIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                    intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                else {
+                    @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                }
+                confirmIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (confirmIntent != null) context.startActivity(confirmIntent)
+            }
+        }
     }
 }
