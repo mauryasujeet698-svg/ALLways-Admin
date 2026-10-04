@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_dashboard_screen.dart';
+import 'update_service.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
 bool _adminNotificationListenerAttached = false;
@@ -90,7 +91,12 @@ class AllwaysAdminApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFC2185B)),
       scaffoldBackgroundColor: const Color(0xFFF8F8F8),
     ),
-    home: const AdminAuthGate(),
+    home: const AllwaysUpdateGate(
+      repo: 'mauryasujeet698-svg/ALLways-Admin',
+      packageChannel: 'com.allways.admin/apk_installer',
+      assetName: 'allways-admin-latest.apk',
+      child: AdminAuthGate(),
+    ),
   );
 }
 
