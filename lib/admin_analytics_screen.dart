@@ -41,7 +41,7 @@ class AdminAnalyticsScreen extends StatelessWidget {
               Text('Completed rides: ${rides.where((r)=>(r['status']??'').toString().toLowerCase()=='completed').length}'),
               Text('Cancelled rides: ${rides.where((r)=>(r['status']??'').toString().toLowerCase()=='cancelled').length}'),
             ]))),
-          ];
+          ]);
         })));
   Widget _m(String v,String l,IconData i)=>Expanded(child:Card(elevation:0,child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(i,color:accent),const SizedBox(height:5),Text(v,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),Text(l,style:const TextStyle(fontSize:10,color:Colors.grey))]))));
 }
