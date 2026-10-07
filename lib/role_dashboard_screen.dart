@@ -198,7 +198,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
 
   Widget _categoryPage(String category){
     final items=actions.where((x){
-      if(category=='Operations')return x.group=='Orders & Dispatch'||x.group=='Partners'||x.group=='Catalog & Content'||x.group=='Communication'||x.group=='People & Access';
+      if(category=='Operations')return x.group=='Orders & Dispatch'||x.group=='Partners'||x.group=='Catalog & Content'||x.group=='Communication'||x.group=='People & Access'||x.group=='Support';
       if(category=='Analytics')return x.group=='Analytics & Finance'||x.group=='Analytics'||x.group=='Growth'||x.group=='Performance'||x.group=='Finance';
       return x.group=='System'||x.group=='Account'||x.group=='Safety'||x.group=='Content'||x.group=='People'||x.group=='Settings';
     }).toList();
