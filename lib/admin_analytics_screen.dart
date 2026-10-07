@@ -26,8 +26,8 @@ class AdminAnalyticsScreen extends StatelessWidget {
             Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               const Text('Customer behaviour',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const SizedBox(height:8),
               Text('Registered customers: ${cs.data!.docs.length}'),Text('Customers with 2+ orders: ${repeat}'),
-              Text('Cancellation rate: ${orders.isEmpty?'0':(cancelled*100/orders.length).toStringAsFixed(1)}%'),
-              Text('Average completed order value: ${completed.isEmpty?'₹0':'₹'+(revenue/completed.length).toStringAsFixed(0)}'),
+              Text('Cancellation rate: ' + (orders.isEmpty ? '0' : (cancelled * 100 / orders.length).toStringAsFixed(1)) + '%'),
+              Text('Average completed order value: ' + (completed.isEmpty ? '₹0' : '₹' + (revenue / completed.length).toStringAsFixed(0))),
             ]))),
             const SizedBox(height:10),
             Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
