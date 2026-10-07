@@ -28,7 +28,7 @@ class _Customers extends StatelessWidget{
         ...docs.map((d){final x=d.data();final n=counts[d.id]??0;final segment=n>=5?'Loyal':n>=2?'Repeat':'New';return Card(elevation:0,child:ListTile(
           leading:CircleAvatar(child:Text(((x['name']??x['displayName']??x['email']??'C').toString().substring(0,1)).toUpperCase())),
           title:Text((x['name']??x['displayName']??x['email']??d.id).toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
-          subtitle:Text('${segment} • ${n} orders • ${x['phone']??x['mobileNumber']??''}'),
+          subtitle:Text('$segment • $n orders • ${x['phone'] ?? x['mobileNumber'] ?? ''}'),
           trailing:Text(n.toString(),style:const TextStyle(fontWeight:FontWeight.w900)),
         ));})
       ]);
