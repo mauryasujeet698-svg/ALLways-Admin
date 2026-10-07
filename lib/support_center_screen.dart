@@ -13,9 +13,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
   String queue = 'Customer Support';
   String status = 'open';
   Stream<QuerySnapshot<Map<String, dynamic>>> _stream() {
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('supportTickets').where('queue', isEqualTo: queue);
-    if (status != 'all') q = q.where('status', isEqualTo: status);
-    return q.orderBy('createdAt', descending: true).limit(100).snapshots();
+    return FirebaseFirestore.instance.collection('supportTickets').where('queue', isEqualTo: queue).limit(100).snapshots();
   }
   Future<void> _edit(DocumentSnapshot<Map<String, dynamic>> doc) async {
     final d = doc.data() ?? {};
@@ -69,7 +67,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
         stream:_stream(),builder:(context,snap){
           if(snap.hasError)return Center(child:Text('Support query failed: ${snap.error}'));
           if(!snap.hasData)return const Center(child:CircularProgressIndicator());
-          final docs=snap.data!.docs;
+          final docs=snap.data!.docs.where((d)=>status=='all'||(d.data()['status']??'open')==status).toList();
           if(docs.isEmpty)return const Center(child:Text('No support tickets in this queue.'));
           return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,itemBuilder:(_,i){
             final d=docs[i],x=d.data(),p=(x['priority']??'normal').toString();
