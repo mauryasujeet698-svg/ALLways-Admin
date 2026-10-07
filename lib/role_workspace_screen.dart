@@ -8,6 +8,7 @@ import 'ride_pricing_screen.dart';
 import 'live_tracking_screen.dart';
 import 'support_center_screen.dart';
 import 'admin_analytics_screen.dart';
+import 'admin_platform_operations_screen.dart';
 
 class RoleFeatureScreen extends StatelessWidget {
   final String role, feature;
@@ -40,6 +41,7 @@ class RoleFeatureScreen extends StatelessWidget {
     if(feature=='Customer Support')return AdminSupportCenterScreen(role:'customer',accent:accent,adminUid:user.uid);
     if(feature=='Service Support')return AdminSupportCenterScreen(role:'service',accent:accent,adminUid:user.uid);
     if(feature=='Reports & Analytics')return AdminAnalyticsScreen(accent:accent);
+    if(feature=='Customers'||feature=='Business Purchases'||feature=='Marketing'||feature=='Finance'||feature=='Service Areas'||feature=='Global Search')return AdminPlatformOperationsScreen(module:feature,accent:accent,adminUid:user.uid);
     if(feature=='Catalog Sync')return const CatalogSyncScreen();
     if(feature=='Delivery & Pricing')return const AdminCmsScreen(section:'Delivery Settings');
     if(feature=='Ride Pricing')return RidePricingScreen(user:user);
