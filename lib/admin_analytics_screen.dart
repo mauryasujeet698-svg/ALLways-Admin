@@ -32,7 +32,7 @@ class AdminAnalyticsScreen extends StatelessWidget {
             const SizedBox(height:10),
             Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               const Text('Most active customers',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const SizedBox(height:5),
-              if(top.isEmpty)const Text('No order history yet.') else ...top.take(10).map((e)=>ListTile(dense:true,contentPadding:EdgeInsets.zero,leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Text(e.value.toString())),title:Text(e.key),subtitle:Text('${e.value} orders'))),
+              ...top.take(10).map((e)=>ListTile(dense:true,contentPadding:EdgeInsets.zero,leading:CircleAvatar(backgroundColor:accent.withOpacity(.1),child:Text(e.value.toString())),title:Text(e.key),subtitle:Text('${e.value} orders'))),
             ]))),
             const SizedBox(height:10),
             Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
