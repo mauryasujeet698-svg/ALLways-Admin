@@ -94,6 +94,6 @@ class _GlobalSearchState extends State<_GlobalSearch>{
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(16),children:[TextField(controller:q,decoration:InputDecoration(labelText:'Search customer, order or ride',suffixIcon:IconButton(icon:const Icon(Icons.search),onPressed:()=>setState(()=>term=q.text.trim()))),onSubmitted:(v)=>setState(()=>term=v.trim())),const SizedBox(height:12),if(term.isNotEmpty)_results()]);
   Widget _results()=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('orders').limit(500).snapshots(),builder:(c,s){
     if(!s.hasData)return const CircularProgressIndicator();final t=term.toLowerCase();final docs=s.data!.docs.where((d){final x=d.data();return d.id.toLowerCase().contains(t)||(x['customerName']??'').toString().toLowerCase().contains(t)||(x['customerId']??'').toString().toLowerCase().contains(t);}).take(30).toList();
-    return Column(children: docs.map((d) => Card(child: ListTile(title: Text('#' + d.id), subtitle: Text((d.data()['customerName'] ?? 'Customer').toString() + ' • ' + (d.data()['status'] ?? '').toString())))).toList());
+    return Column(children: docs.map((d) => Card(child: ListTile(title: Text('#' + d.id), subtitle: Text((d.data()['customerName'] ?? 'Customer').toString() + ' • ' + (d.data()['status'] ?? '').toString()))).toList());
   });
 }
