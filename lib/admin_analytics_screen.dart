@@ -34,7 +34,7 @@ class AdminAnalyticsScreen extends StatelessWidget {
                     return {'delivered', 'completed'}.contains((o['status'] ?? '').toString().toLowerCase());
                   }).toList();
                   final cancelled = orders.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'cancelled').length;
-                  final revenue = completed.fold<double>(0, (sum, o) => sum + n(o['total']));
+                  final revenue = completed.fold<double>(0, (total, o) => total + n(o['total']));
                   final repeat = counts.values.where((v) => v >= 2).length;
                   final top = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
                   final active = rides.where((r) {
