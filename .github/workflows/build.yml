@@ -77,7 +77,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
-          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/allways-admin-v${APP_VERSION}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/allways-admin-v${{ env.APP_VERSION }}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "release-assets/allways-admin-latest.apk"
       - name: Publish latest APK release
         uses: softprops/action-gh-release@v2
