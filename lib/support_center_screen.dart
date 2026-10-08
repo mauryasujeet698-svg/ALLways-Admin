@@ -12,6 +12,7 @@ class AdminSupportCenterScreen extends StatefulWidget {
 class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
   String queue = 'Customer Support';
   String status = 'open';
+  String area = 'all';
   Stream<QuerySnapshot<Map<String, dynamic>>> _stream() {
     return FirebaseFirestore.instance.collection('supportTickets').where('queue', isEqualTo: queue).limit(100).snapshots();
   }
@@ -20,6 +21,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
     String s = (d['status'] ?? 'open').toString();
     String p = (d['priority'] ?? 'normal').toString();
     final note = TextEditingController();
+    final reply = TextEditingController(text: (d['adminReply'] ?? '').toString());
     await showModalBottomSheet(context: context, isScrollControlled: true, showDragHandle: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) => SafeArea(child: Padding(
         padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
@@ -40,12 +42,17 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
             items: const [DropdownMenuItem(value:'open',child:Text('Open')),DropdownMenuItem(value:'assigned',child:Text('Assigned')),DropdownMenuItem(value:'waiting_customer',child:Text('Waiting for customer')),DropdownMenuItem(value:'resolved',child:Text('Resolved')),DropdownMenuItem(value:'closed',child:Text('Closed')),DropdownMenuItem(value:'escalated',child:Text('Escalated'))],
             onChanged:(v)=>setSheet(()=>s=v??s)),
           const SizedBox(height: 10),
+          TextField(controller: reply, maxLines: 4, decoration: const InputDecoration(labelText:'Reply to customer')),
+          const SizedBox(height: 10),
           TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText:'Internal note')),
           const SizedBox(height: 12),
           SizedBox(width:double.infinity,child:FilledButton(
             style:FilledButton.styleFrom(backgroundColor:widget.accent),
             onPressed:() async {
-              await doc.reference.update({'status':s,'priority':p,if(note.text.trim().isNotEmpty)'lastAdminNote':note.text.trim(),'updatedAt':FieldValue.serverTimestamp(),'updatedBy':widget.adminUid});
+              final patch=<String,dynamic>{'status':s,'priority':p,'updatedAt':FieldValue.serverTimestamp(),'updatedBy':widget.adminUid};
+              if(note.text.trim().isNotEmpty)patch['lastAdminNote']=note.text.trim();
+              if(reply.text.trim().isNotEmpty) { patch['adminReply']=reply.text.trim(); patch['lastAdminReplyAt']=FieldValue.serverTimestamp(); patch['lastAdminReplyBy']=widget.adminUid; }
+              await doc.reference.update(patch);
               if(ctx.mounted)Navigator.pop(ctx);
             }, child:const Text('Save ticket'))),
         ]))))));
@@ -58,6 +65,11 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
         ChoiceChip(label:const Text('Customer Support'),selected:queue=='Customer Support',onSelected:(_)=>setState(()=>queue='Customer Support')),
         const SizedBox(width:8),
         ChoiceChip(label:const Text('Service Support'),selected:queue=='Service Support',onSelected:(_)=>setState(()=>queue='Service Support')),
+        const SizedBox(width:8),
+        for(final x in const ['Item','Ride','General']) ...[
+          const SizedBox(width:8),
+          ChoiceChip(label:Text(x),selected:area==x,onSelected:(_)=>setState(()=>area=area==x?'all':x)),
+        ],
       ]))),
       Padding(padding:const EdgeInsets.fromLTRB(16,0,16,10),child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
         for(final x in const ['open','assigned','waiting_customer','resolved','closed','escalated','all'])
@@ -67,7 +79,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
         stream:_stream(),builder:(context,snap){
           if(snap.hasError)return Center(child:Text('Support query failed: ${snap.error}'));
           if(!snap.hasData)return const Center(child:CircularProgressIndicator());
-          final docs=snap.data!.docs.where((d)=>status=='all'||(d.data()['status']??'open')==status).toList();
+          final docs=snap.data!.docs.where((d){final x=d.data();final s=(x['status']??'open').toString();final raw=(x['area']??'General').toString();final a=raw=='Order'?'Item':raw=='Account'?'General':raw;return (status=='all'||s==status)&&(area=='all'||a==area);}).toList();
           if(docs.isEmpty)return const Center(child:Text('No support tickets in this queue.'));
           return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,itemBuilder:(_,i){
             final d=docs[i],x=d.data(),p=(x['priority']??'normal').toString();
