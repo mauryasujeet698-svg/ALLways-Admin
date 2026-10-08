@@ -12,6 +12,7 @@ class AdminSupportCenterScreen extends StatefulWidget {
 class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
   String queue = 'Customer Support';
   String status = 'open';
+  String area = 'all';
   Stream<QuerySnapshot<Map<String, dynamic>>> _stream() {
     return FirebaseFirestore.instance.collection('supportTickets').where('queue', isEqualTo: queue).limit(100).snapshots();
   }
@@ -26,7 +27,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
         child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text((d['subject'] ?? 'Support request').toString(), style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
           const SizedBox(height: 5), Text('Ticket #${doc.id}'),
-          const SizedBox(height: 12), Text('Category: ${d['category'] ?? 'General'} / ${d['subcategory'] ?? ''}'),
+          const SizedBox(height: 12), Text('Category: ${d['area'] ?? 'General'} / ${d['category'] ?? 'General'} / ${d['subcategory'] ?? ''}'),
           Text('Requester: ${d['customerName'] ?? d['requesterName'] ?? d['requesterId'] ?? 'Unknown'}'),
           if ((d['orderId'] ?? '').toString().isNotEmpty) Text('Order: ${d['orderId']}'),
           if ((d['rideId'] ?? '').toString().isNotEmpty) Text('Ride: ${d['rideId']}'),
@@ -63,11 +64,20 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
         for(final x in const ['open','assigned','waiting_customer','resolved','closed','escalated','all'])
           Padding(padding:const EdgeInsets.only(right:6),child:ChoiceChip(label:Text(x.replaceAll('_',' ')),selected:status==x,onSelected:(_)=>setState(()=>status=x))),
       ]))),
+      Padding(padding:const EdgeInsets.fromLTRB(16,0,16,10),child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
+        for(final x in const ['all','Item','Ride','General'])
+          Padding(padding:const EdgeInsets.only(right:6),child:ChoiceChip(label:Text(x=='all'?'All issues':x),selected:area==x,onSelected:(_)=>setState(()=>area=x))),
+      ]))),
       Expanded(child:StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(
         stream:_stream(),builder:(context,snap){
           if(snap.hasError)return Center(child:Text('Support query failed: ${snap.error}'));
           if(!snap.hasData)return const Center(child:CircularProgressIndicator());
-          final docs=snap.data!.docs.where((d)=>status=='all'||(d.data()['status']??'open')==status).toList();
+          final docs=snap.data!.docs.where((d){
+            final x=d.data();
+            final statusMatch=status=='all'||(x['status']??'open')==status;
+            final areaMatch=area=='all'||(x['area']??'General').toString().toLowerCase()==area.toLowerCase();
+            return statusMatch&&areaMatch;
+          }).toList();
           if(docs.isEmpty)return const Center(child:Text('No support tickets in this queue.'));
           return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,itemBuilder:(_,i){
             final d=docs[i],x=d.data(),p=(x['priority']??'normal').toString();
