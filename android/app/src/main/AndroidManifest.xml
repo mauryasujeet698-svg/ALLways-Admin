@@ -5,7 +5,7 @@
     <application
         android:label="ALLways Admin"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@drawable/allways_admin_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"
