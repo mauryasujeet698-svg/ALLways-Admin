@@ -16,6 +16,7 @@ class AdminLiveTrackingScreen extends StatefulWidget {
 
 class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
   final TextEditingController _search = TextEditingController();
+  final TextEditingController _partnerSearch = TextEditingController();
   String _statusFilter = 'All active';
   String _assignment = 'All';
   String _dateRange = 'Last 7 days';
@@ -30,6 +31,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _partnerSearch.dispose();
     super.dispose();
   }
 
@@ -108,6 +110,9 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     final assigned = _partnerId(x, ride: ride).isNotEmpty;
     if (_assignment == 'Assigned' && !assigned) return false;
     if (_assignment == 'Unassigned' && assigned) return false;
+    final partnerQuery = _partnerSearch.text.trim().toLowerCase();
+    if (partnerQuery.isNotEmpty &&
+        !('${_partnerName(x, ride: ride)} ${_partnerId(x, ride: ride)}'.toLowerCase().contains(partnerQuery))) return false;
     final q = _search.text.trim().toLowerCase();
     if (q.isEmpty) return true;
     final haystack = [
@@ -133,6 +138,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     final canShowLiveLocation = assigned && fresh && hasValidCoords;
     final created = _created(x, ride: ride);
     final stale = assigned && (activity == null || DateTime.now().toUtc().difference(activity.toUtc()) > const Duration(minutes: 10));
+    final delayed = created != null && DateTime.now().toUtc().difference(created.toUtc()) > const Duration(minutes: 30);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -159,6 +165,8 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
           ]),
           if (!assigned)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Action needed: assign a partner.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
+          if (delayed)
+            const Padding(padding: EdgeInsets.only(top: 8), child: Text('Potential delay: this job has been active for over 30 minutes. Review the current status.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
           if (stale)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Stale activity: no recent location/activity update. Verify status with the partner.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
           if (assigned && activity == null)
@@ -244,7 +252,13 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       const SizedBox(height: 10),
       TextField(
         controller: _search,
-        decoration: const InputDecoration(labelText: 'Search reference, customer or partner', prefixIcon: Icon(Icons.search), border: OutlineInputBorder()),
+        decoration: const InputDecoration(labelText: 'Search reference or customer', prefixIcon: Icon(Icons.search), border: OutlineInputBorder()),
+        onChanged: (_) => setState(() {}),
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        controller: _partnerSearch,
+        decoration: const InputDecoration(labelText: 'Filter by partner name or ID', prefixIcon: Icon(Icons.person_search), border: OutlineInputBorder()),
         onChanged: (_) => setState(() {}),
       ),
       const SizedBox(height: 8),
