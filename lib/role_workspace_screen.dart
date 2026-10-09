@@ -19,7 +19,7 @@ class RoleFeatureScreen extends StatelessWidget {
   IconData get icon => const {
     'Manage Sellers':Icons.storefront,'Manage Carriers':Icons.two_wheeler,'Manage Delivery Partners':Icons.delivery_dining,
     'Manage Orders':Icons.receipt_long,'Live Tracking':Icons.gps_fixed,'Catalog Sync':Icons.sync,'Manage Banners':Icons.view_carousel,'Homepage & Content':Icons.home_work,
-    'Send Notifications':Icons.campaign,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
+    'Send Notifications':Icons.campaign,'Customer Support':Icons.support_agent,'Service Support':Icons.handyman,'Users & Roles':Icons.manage_accounts,'Reports & Analytics':Icons.analytics,'App Settings':Icons.settings,
     'Products':Icons.inventory_2,'Orders':Icons.receipt_long,'Shop Profile':Icons.storefront,'Offers':Icons.local_offer,'Inventory':Icons.fact_check,'Sales Analytics':Icons.bar_chart,'Payouts':Icons.account_balance_wallet,
     'Delivery Requests':Icons.local_shipping,'My Deliveries':Icons.assignment_turned_in,'Earnings':Icons.currency_rupee,'Incentives':Icons.card_giftcard,'Performance':Icons.bar_chart,'Documents':Icons.description,'Safety & SOS':Icons.shield,'Help & Support':Icons.support_agent,
     'Ride Requests':Icons.two_wheeler,'Ride Pricing':Icons.payments_outlined,'My Rides':Icons.route,'Ratings':Icons.star,'Ride History':Icons.history,'Vehicle & Documents':Icons.description,'Profile & Settings':Icons.person,

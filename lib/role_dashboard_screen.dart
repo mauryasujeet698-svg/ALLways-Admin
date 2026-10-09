@@ -83,6 +83,8 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
       _Action('Manage Banners',Icons.view_carousel,'Catalog & Content'),
       _Action('Homepage & Content',Icons.home_work,'Catalog & Content'),
       _Action('Send Notifications',Icons.campaign,'Communication'),
+      _Action('Customer Support',Icons.support_agent,'Communication'),
+      _Action('Service Support',Icons.handyman,'Communication'),
       _Action('Users & Roles',Icons.manage_accounts,'People & Access'),
       _Action('Reports & Analytics',Icons.analytics,'Analytics & Finance'),
       _Action('App Settings',Icons.settings,'System'),

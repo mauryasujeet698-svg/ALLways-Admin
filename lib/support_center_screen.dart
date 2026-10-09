@@ -17,7 +17,12 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
   final searchController = TextEditingController();
   @override void dispose(){searchController.dispose();super.dispose();}
   Stream<QuerySnapshot<Map<String, dynamic>>> _stream() {
-    return FirebaseFirestore.instance.collection('supportTickets').where('queue', isEqualTo: queue).limit(100).snapshots();
+    final tickets = FirebaseFirestore.instance.collection('supportTickets');
+    if (queue == 'Service Support') {
+      // Include older delivery tickets created before the queue name was normalized.
+      return tickets.where('queue', whereIn: const ['Service Support', 'Delivery Service Support']).limit(100).snapshots();
+    }
+    return tickets.where('queue', isEqualTo: queue).limit(100).snapshots();
   }
   Future<void> _edit(DocumentSnapshot<Map<String, dynamic>> doc) async {
     final d = doc.data() ?? {};
@@ -45,7 +50,7 @@ class _AdminSupportCenterScreenState extends State<AdminSupportCenterScreen> {
             items: const [DropdownMenuItem(value:'open',child:Text('Open')),DropdownMenuItem(value:'assigned',child:Text('Assigned')),DropdownMenuItem(value:'waiting_customer',child:Text('Waiting for customer')),DropdownMenuItem(value:'resolved',child:Text('Resolved')),DropdownMenuItem(value:'closed',child:Text('Closed')),DropdownMenuItem(value:'escalated',child:Text('Escalated'))],
             onChanged:(v)=>setSheet(()=>s=v??s)),
           const SizedBox(height: 10),
-          TextField(controller: reply, maxLines: 4, decoration: const InputDecoration(labelText:'Reply to customer')),
+          TextField(controller: reply, maxLines: 4, decoration: const InputDecoration(labelText:'Reply to requester')),
           const SizedBox(height: 10),
           TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText:'Internal note')),
           const SizedBox(height: 12),
