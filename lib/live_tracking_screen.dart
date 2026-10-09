@@ -90,9 +90,11 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       _date(x[ride ? 'requestedAt' : 'createdAt']) ??
       _date(x['createdAt']) ?? _date(x['assignedAt']) ?? _date(x['updatedAt']);
 
-  DateTime? _lastActivity(Map<String, dynamic> x, {required bool ride}) =>
+  DateTime? _locationUpdatedAt(Map<String, dynamic> x, {required bool ride}) =>
       _date(x[ride ? 'driverLocationUpdatedAt' : 'carrierLocationUpdatedAt']) ??
-      _date(x['lastActivityAt']) ?? _date(x['updatedAt']);
+      _date(x[ride ? 'driverLastLocationAt' : 'lastLocationAt']);
+  DateTime? _lastActivity(Map<String, dynamic> x, {required bool ride}) =>
+      _locationUpdatedAt(x, ride: ride) ?? _date(x['lastActivityAt']) ?? _date(x['statusUpdatedAt']) ?? _date(x['updatedAt']);
 
   bool _isFresh(DateTime? date) =>
       date != null && DateTime.now().toUtc().difference(date.toUtc()) <= const Duration(minutes: 2) &&
@@ -123,7 +125,8 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     final partnerId = _partnerId(x, ride: ride);
     final assigned = partnerId.isNotEmpty;
     final activity = _lastActivity(x, ride: ride);
-    final fresh = _isFresh(activity);
+    final locationTime = _locationUpdatedAt(x, ride: ride);
+    final fresh = _isFresh(locationTime);
     final lat = _number(ride ? x['driverLat'] : (x['carrierLat'] ?? x['deliveryLat']));
     final lng = _number(ride ? x['driverLng'] : (x['carrierLng'] ?? x['deliveryLng']));
     final hasValidCoords = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && lat != 0 && lng != 0;
