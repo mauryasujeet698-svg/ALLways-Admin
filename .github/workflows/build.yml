@@ -91,14 +91,16 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_2
-          cores: 4
-          disable-linux-hw-accel: true
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          cores: 2
           disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           script: |
-            adb install -r build/app/outputs/flutter-apk/app-debug.apk
-            timeout 90s adb shell am start -S -W -n com.allways.admin/.MainActivity
-            for attempt in $(seq 1 10); do if adb shell pidof com.allways.admin >/dev/null 2>&1; then exit 0; fi; sleep 2; done; echo "Admin process did not remain alive after launch; collecting diagnostic logs."; (adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|AndroidRuntime|Process: com\\.allways\\.admin" || true); (adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true); exit 1
+            adb wait-for-device
+            adb logcat -c
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk || (sleep 5 && adb install -r build/app/outputs/flutter-apk/app-debug.apk)
+            timeout 90s adb shell am start -W -n com.allways.admin/.MainActivity
+            sleep 15
+            adb shell pidof com.allways.admin >/dev/null || { echo "Admin process exited after launch; Android diagnostics follow."; adb logcat -d -t 1200 | grep -E 'FATAL EXCEPTION|AndroidRuntime|Process: com.allways.admin|Unable to start activity' || true; adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true; exit 1; }
 
       - name: Prepare release assets
         run: |
