@@ -86,7 +86,16 @@ jobs:
           script: |
             adb install -r build/app/outputs/flutter-apk/app-release.apk
             timeout 90s adb shell am start -S -W -n com.allways.admin/.MainActivity
-            adb shell pidof com.allways.admin
+            for attempt in $(seq 1 10); do
+              if adb shell pidof com.allways.admin >/dev/null 2>&1; then
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Admin process did not remain alive after launch; collecting diagnostic logs."
+            adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|AndroidRuntime|Process: com\\.allways\\.admin" || true
+            adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true
+            exit 1
 
       - name: Prepare release assets
         run: |
