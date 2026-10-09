@@ -16,7 +16,7 @@ class AdminLiveTrackingScreen extends StatefulWidget {
 
 class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
   final TextEditingController _search = TextEditingController();
-  String _status = 'All active';
+  String _statusFilter = 'All active';
   String _assignment = 'All';
   String _dateRange = 'Last 7 days';
 
@@ -71,7 +71,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     return !day.isBefore(start) && day.isBefore(end);
   }
 
-  String _status(Map<String, dynamic> x) => (x['status'] ?? 'unknown').toString().trim().toLowerCase();
+  String _jobStatus(Map<String, dynamic> x) => (x['status'] ?? 'unknown').toString().trim().toLowerCase();
   String _partnerId(Map<String, dynamic> x, {required bool ride}) =>
       (ride
           ? (x['driverUid'] ?? x['carrierUid'] ?? x['assignedPartnerId'] ?? '')
@@ -99,10 +99,10 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       !date.isAfter(DateTime.now().add(const Duration(minutes: 1)));
 
   bool _matches(Map<String, dynamic> x, String id, {required bool ride}) {
-    final status = _status(x);
+    final status = _jobStatus(x);
     if (!(ride ? _activeRideStatuses : _activeOrderStatuses).contains(status)) return false;
     if (!_inRange(_created(x, ride: ride))) return false;
-    if (_status != 'All active' && status != _status.toLowerCase()) return false;
+    if (_statusFilter != 'All active' && status != _statusFilter.toLowerCase()) return false;
     final assigned = _partnerId(x, ride: ride).isNotEmpty;
     if (_assignment == 'Assigned' && !assigned) return false;
     if (_assignment == 'Unassigned' && assigned) return false;
@@ -119,7 +119,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
 
   Widget _jobCard(BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc, {required bool ride}) {
     final x = doc.data();
-    final status = _status(x);
+    final status = _jobStatus(x);
     final partnerId = _partnerId(x, ride: ride);
     final assigned = partnerId.isNotEmpty;
     final activity = _lastActivity(x, ride: ride);
@@ -247,7 +247,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       const SizedBox(height: 8),
       Wrap(spacing: 8, runSpacing: 8, children: [
         _dropdown('Date', _dateRange, const ['Today', 'Last 7 days', 'This month', 'This year', 'All time'], (v) => setState(() => _dateRange = v)),
-        _dropdown('Status', _status, const ['All active', 'searching', 'accepted', 'started', 'arrived', 'pending', 'assigned', 'picked up', 'out for delivery', 'ready', 'preparing'], (v) => setState(() => _status = v)),
+        _dropdown('Status', _statusFilter, const ['All active', 'searching', 'accepted', 'started', 'arrived', 'pending', 'assigned', 'picked up', 'out for delivery', 'ready', 'preparing'], (v) => setState(() => _statusFilter = v)),
         _dropdown('Assignment', _assignment, const ['All', 'Assigned', 'Unassigned'], (v) => setState(() => _assignment = v)),
       ]),
       const SizedBox(height: 8),
