@@ -128,7 +128,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     if (previous == 0) return current == 0 ? 'No change vs previous period' : 'New activity (previous period: 0)';
     final change = ((current - previous) * 100 / previous);
     final prefix = change > 0 ? '+' : '';
-    return '${prefix}${change.toStringAsFixed(1)}% vs previous period';
+    return '$prefix${change.toStringAsFixed(1)}% vs previous period';
   }
 
   Future<void> _chooseCustomRange() async {
