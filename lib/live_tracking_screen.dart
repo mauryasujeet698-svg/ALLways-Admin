@@ -104,9 +104,12 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
 
   bool _matches(Map<String, dynamic> x, String id, {required bool ride}) {
     final status = _jobStatus(x);
-    if (!(ride ? _activeRideStatuses : _activeOrderStatuses).contains(status)) return false;
+    const terminalStatuses = {'completed', 'delivered', 'cancelled', 'canceled', 'rejected', 'expired', 'failed'};
+    final activeStatuses = ride ? _activeRideStatuses : _activeOrderStatuses;
+    if (_statusFilter == 'All active' && !activeStatuses.contains(status)) return false;
+    if (_statusFilter == 'All statuses' && !activeStatuses.contains(status) && !terminalStatuses.contains(status)) return false;
+    if (_statusFilter != 'All active' && _statusFilter != 'All statuses' && status != _statusFilter.toLowerCase()) return false;
     if (!_inRange(_created(x, ride: ride))) return false;
-    if (_statusFilter != 'All active' && status != _statusFilter.toLowerCase()) return false;
     final assigned = _partnerId(x, ride: ride).isNotEmpty;
     if (_assignment == 'Assigned' && !assigned) return false;
     if (_assignment == 'Unassigned' && assigned) return false;
@@ -264,7 +267,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       const SizedBox(height: 8),
       Wrap(spacing: 8, runSpacing: 8, children: [
         _dropdown('Date', _dateRange, const ['Today', 'Last 7 days', 'This month', 'This year', 'All time'], (v) => setState(() => _dateRange = v)),
-        _dropdown('Status', _statusFilter, const ['All active', 'searching', 'accepted', 'started', 'arrived', 'pending', 'assigned', 'picked up', 'out for delivery', 'ready', 'preparing'], (v) => setState(() => _statusFilter = v)),
+        _dropdown('Status', _statusFilter, const ['All active', 'All statuses', 'searching', 'accepted', 'started', 'arrived', 'pending', 'assigned', 'picked up', 'out for delivery', 'ready', 'preparing', 'completed', 'delivered', 'cancelled', 'rejected', 'expired', 'failed'], (v) => setState(() => _statusFilter = v)),
         _dropdown('Assignment', _assignment, const ['All', 'Assigned', 'Unassigned'], (v) => setState(() => _assignment = v)),
       ]),
       const SizedBox(height: 8),
@@ -283,9 +286,9 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
               final visibleRides = rides.where((d) => _matches(d.data(), d.id, ride: true)).length;
               final visibleOrders = orders.where((d) => _matches(d.data(), d.id, ride: false)).length;
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Matching active jobs: ${visibleRides + visibleOrders} • ${visibleRides} rides • ${visibleOrders} deliveries', style: const TextStyle(fontWeight: FontWeight.w800)),
-                _section('Active rides', rides, ride: true),
-                _section('Active deliveries', orders, ride: false),
+                Text('Matching jobs: ${visibleRides + visibleOrders} • ${visibleRides} rides • ${visibleOrders} deliveries', style: const TextStyle(fontWeight: FontWeight.w800)),
+                _section('Ride operations', rides, ride: true),
+                _section('Delivery operations', orders, ride: false),
               ]);
             },
           );
