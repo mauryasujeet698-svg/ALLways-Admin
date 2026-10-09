@@ -96,7 +96,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
       _date(x[ride ? 'driverLocationUpdatedAt' : 'carrierLocationUpdatedAt']) ??
       _date(x[ride ? 'driverLastLocationAt' : 'lastLocationAt']);
   DateTime? _lastActivity(Map<String, dynamic> x, {required bool ride}) =>
-      _locationUpdatedAt(x, ride: ride) ?? _date(x['lastActivityAt']) ?? _date(x['statusUpdatedAt']) ?? _date(x['updatedAt']);
+      _date(x['lastActivityAt']) ?? _date(x['statusUpdatedAt']) ?? _date(x['updatedAt']) ?? _locationUpdatedAt(x, ride: ride);
 
   bool _isFresh(DateTime? date) =>
       date != null && DateTime.now().toUtc().difference(date.toUtc()) <= const Duration(minutes: 2) &&
@@ -142,6 +142,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     final canShowLiveLocation = isActive && assigned && fresh && hasValidCoords;
     final created = _created(x, ride: ride);
     final stale = isActive && assigned && (activity == null || DateTime.now().toUtc().difference(activity.toUtc()) > const Duration(minutes: 10));
+    final staleLocation = isActive && assigned && (locationTime == null || DateTime.now().toUtc().difference(locationTime.toUtc()) > const Duration(minutes: 2));
     final delayed = isActive && created != null && DateTime.now().toUtc().difference(created.toUtc()) > const Duration(minutes: 30);
 
     return Card(
@@ -165,6 +166,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
           Wrap(spacing: 8, runSpacing: 5, children: [
             _infoChip(assigned ? 'Assigned' : 'UNASSIGNED', assigned ? Icons.person : Icons.person_off),
             if (created != null) _infoChip('Created ${_age(created)} ago', Icons.schedule),
+            if (locationTime != null) _infoChip('Location ${_age(locationTime)} ago', Icons.my_location),
             if (activity != null) _infoChip('Activity ${_age(activity)} ago', Icons.update),
           ]),
           if (isActive && !assigned)
@@ -172,7 +174,9 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
           if (delayed)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Potential delay: this job has been active for over 30 minutes. Review the current status.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
           if (stale)
-            const Padding(padding: EdgeInsets.only(top: 8), child: Text('Stale activity: no recent location/activity update. Verify status with the partner.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
+            const Padding(padding: EdgeInsets.only(top: 8), child: Text('Stale activity: no recent status/activity update. Verify status with the partner.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
+          if (staleLocation)
+            const Padding(padding: EdgeInsets.only(top: 8), child: Text('Stale location: location is not recent enough to display as live.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
           if (assigned && activity == null)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Last activity time unavailable; location is not treated as live.', style: TextStyle(color: Colors.grey))),
           if (canShowLiveLocation)
