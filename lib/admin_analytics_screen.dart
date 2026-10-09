@@ -264,10 +264,32 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     combinedCounts[entry.key] = (combinedCounts[entry.key] ?? 0) + entry.value;
                   }
                   final repeatCombined = combinedCounts.values.where((v) => v >= 2).length;
-                  final completedOrderRate = periodOrders.isEmpty ? 0.0 : completedOrders.length * 100 / periodOrders.length;
-                  final cancelledOrderRate = periodOrders.isEmpty ? 0.0 : cancelledOrders * 100 / periodOrders.length;
-                  final completedRideRate = periodRides.isEmpty ? 0.0 : completedRides.length * 100 / periodRides.length;
-                  final cancelledRideRate = periodRides.isEmpty ? 0.0 : cancelledRides * 100 / periodRides.length;
+                  final orderOutcomeCount = orderDocs.where((d) {
+                    final status = _status(d.data());
+                    final isTerminal = _completedDelivery.contains(status) || _cancelled.contains(status) || _rejectedExpired.contains(status);
+                    if (!isTerminal) return false;
+                    final keys = _completedDelivery.contains(status)
+                        ? const ['deliveredAt', 'completedAt']
+                        : _cancelled.contains(status)
+                            ? const ['cancelledAt', 'updatedAt']
+                            : const ['rejectedAt', 'expiredAt', 'updatedAt'];
+                    return _within(_eventDate(d.data(), keys), bounds);
+                  }).length;
+                  final rideOutcomeCount = rideDocs.where((d) {
+                    final status = _status(d.data());
+                    final isTerminal = status == 'completed' || _cancelled.contains(status) || _rejectedExpired.contains(status);
+                    if (!isTerminal) return false;
+                    final keys = status == 'completed'
+                        ? const ['completedAt']
+                        : _cancelled.contains(status)
+                            ? const ['cancelledAt', 'updatedAt']
+                            : const ['rejectedAt', 'expiredAt', 'updatedAt'];
+                    return _within(_eventDate(d.data(), keys), bounds);
+                  }).length;
+                  final completedOrderRate = orderOutcomeCount == 0 ? 0.0 : completedOrders.length * 100 / orderOutcomeCount;
+                  final cancelledOrderRate = orderOutcomeCount == 0 ? 0.0 : cancelledOrders * 100 / orderOutcomeCount;
+                  final completedRideRate = rideOutcomeCount == 0 ? 0.0 : completedRides.length * 100 / rideOutcomeCount;
+                  final cancelledRideRate = rideOutcomeCount == 0 ? 0.0 : cancelledRides * 100 / rideOutcomeCount;
                   final previous = _previousBounds(bounds);
                   final previousOrders = orderDocs.where((d) => _within(_eventDate(d.data(), const ['createdAt', 'createdOn', 'orderDate']), previous)).length;
                   final previousRides = rideDocs.where((d) => _within(_eventDate(d.data(), const ['requestedAt', 'createdAt', 'createdOn']), previous)).length;
