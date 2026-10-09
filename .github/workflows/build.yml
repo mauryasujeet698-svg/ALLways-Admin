@@ -79,6 +79,12 @@ jobs:
           VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d '+' -f 1)
           test -n "$VERSION"
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Build x86_64 smoke-test APK
+        env:
+          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+        shell: bash
+        run: flutter build apk --debug --target-platform android-x64 --dart-define=MAPBOX_PUBLIC_TOKEN="${MAPBOX_PUBLIC_TOKEN}"
+
       - name: Android runtime smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -90,7 +96,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            adb install -r build/app/outputs/flutter-apk/app-release.apk
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk
             timeout 90s adb shell am start -S -W -n com.allways.admin/.MainActivity
             for attempt in $(seq 1 10); do if adb shell pidof com.allways.admin >/dev/null 2>&1; then exit 0; fi; sleep 2; done; echo "Admin process did not remain alive after launch; collecting diagnostic logs."; (adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|AndroidRuntime|Process: com\\.allways\\.admin" || true); (adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" || true); exit 1
 
