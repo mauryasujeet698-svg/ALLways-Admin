@@ -106,6 +106,31 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   DateTime? _eventDate(Map<String, dynamic> data, List<String> eventKeys) =>
       _firstDate(data, [...eventKeys, 'createdAt', 'requestedAt', 'createdOn', 'timestamp']);
 
+  ({DateTime start, DateTime end}) _previousBounds(({DateTime start, DateTime end}) current) {
+    switch (_period) {
+      case _Period.today:
+        return (start: current.start.subtract(const Duration(days: 1)), end: current.start);
+      case _Period.last7Days:
+        return (start: current.start.subtract(const Duration(days: 7)), end: current.start);
+      case _Period.month:
+        final previousStart = DateTime.utc(current.start.year, current.start.month - 1);
+        return (start: previousStart, end: current.start);
+      case _Period.year:
+        final previousStart = DateTime.utc(current.start.year - 1);
+        return (start: previousStart, end: current.start);
+      case _Period.custom:
+        final duration = current.end.difference(current.start);
+        return (start: current.start.subtract(duration), end: current.start);
+    }
+  }
+
+  String _changeLabel(int current, int previous) {
+    if (previous == 0) return current == 0 ? 'No change vs previous period' : 'New activity (previous period: 0)';
+    final change = ((current - previous) * 100 / previous);
+    final prefix = change > 0 ? '+' : '';
+    return '${prefix}${change.toStringAsFixed(1)}% vs previous period';
+  }
+
   Future<void> _chooseCustomRange() async {
     final today = _indiaToday();
     final picked = await showDateRangePicker(
@@ -192,14 +217,28 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     bounds,
                   )).toList();
                   final newCustomers = customerDocs.where((d) => _within(
-                    _eventDate(d.data(), const ['createdAt', 'registeredAt', 'registrationDate', 'createdOn']),
+                    _firstDate(d.data(), const ['createdAt', 'registeredAt', 'registrationDate', 'createdOn']),
                     bounds,
                   )).length;
 
-                  final completedOrders = periodOrders.where((d) => _completedDelivery.contains(_status(d.data()))).toList();
-                  final cancelledOrders = periodOrders.where((d) => _cancelled.contains(_status(d.data()))).length;
-                  final completedRides = periodRides.where((d) => _status(d.data()) == 'completed').toList();
-                  final cancelledRides = periodRides.where((d) => _cancelled.contains(_status(d.data()))).length;
+                  // Completion/cancellation metrics use their event timestamps, not
+                  // transaction creation time. Legacy records fall back to creation time.
+                  final completedOrders = orderDocs.where((d) =>
+                    _completedDelivery.contains(_status(d.data())) &&
+                    _within(_eventDate(d.data(), const ['deliveredAt', 'completedAt']), bounds)
+                  ).toList();
+                  final cancelledOrders = orderDocs.where((d) =>
+                    _cancelled.contains(_status(d.data())) &&
+                    _within(_eventDate(d.data(), const ['cancelledAt', 'updatedAt']), bounds)
+                  ).length;
+                  final completedRides = rideDocs.where((d) =>
+                    _status(d.data()) == 'completed' &&
+                    _within(_eventDate(d.data(), const ['completedAt']), bounds)
+                  ).toList();
+                  final cancelledRides = rideDocs.where((d) =>
+                    _cancelled.contains(_status(d.data())) &&
+                    _within(_eventDate(d.data(), const ['cancelledAt', 'updatedAt']), bounds)
+                  ).length;
                   final activeOrders = periodOrders.where((d) => _activeDelivery.contains(_status(d.data()))).toList();
                   final activeRides = periodRides.where((d) => _activeRide.contains(_status(d.data()))).toList();
                   final unassignedOrders = activeOrders.where((d) => _partnerId(d.data()).isEmpty).length;
@@ -229,6 +268,12 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   final cancelledOrderRate = periodOrders.isEmpty ? 0.0 : cancelledOrders * 100 / periodOrders.length;
                   final completedRideRate = periodRides.isEmpty ? 0.0 : completedRides.length * 100 / periodRides.length;
                   final cancelledRideRate = periodRides.isEmpty ? 0.0 : cancelledRides * 100 / periodRides.length;
+                  final previous = _previousBounds(bounds);
+                  final previousOrders = orderDocs.where((d) => _within(_eventDate(d.data(), const ['createdAt', 'createdOn', 'orderDate']), previous)).length;
+                  final previousRides = rideDocs.where((d) => _within(_eventDate(d.data(), const ['requestedAt', 'createdAt', 'createdOn']), previous)).length;
+                  final previousCompletedOrders = orderDocs.where((d) => _completedDelivery.contains(_status(d.data())) && _within(_eventDate(d.data(), const ['deliveredAt', 'completedAt']), previous)).length;
+                  final previousCompletedRides = rideDocs.where((d) => _status(d.data()) == 'completed' && _within(_eventDate(d.data(), const ['completedAt']), previous)).length;
+                  final previousNewCustomers = customerDocs.where((d) => _within(_firstDate(d.data(), const ['createdAt', 'registeredAt', 'registrationDate', 'createdOn']), previous)).length;
 
                   return ListView(
                     padding: const EdgeInsets.all(16),
@@ -294,6 +339,19 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         (newCustomers.toString(), 'New customers', Icons.person_add_alt_1),
                         (repeatCombined.toString(), 'Repeat customers (combined)', Icons.groups),
                       ]),
+                      const SizedBox(height: 12),
+                      Card(child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Compared with previous equivalent period', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          Text('Orders created: ${_changeLabel(periodOrders.length, previousOrders)}'),
+                          Text('Completed deliveries: ${_changeLabel(completedOrders.length, previousCompletedOrders)}'),
+                          Text('Rides created: ${_changeLabel(periodRides.length, previousRides)}'),
+                          Text('Completed rides: ${_changeLabel(completedRides.length, previousCompletedRides)}'),
+                          Text('New customers: ${_changeLabel(newCustomers, previousNewCustomers)}'),
+                        ]),
+                      )),
                       const SizedBox(height: 12),
                       Card(child: Padding(
                         padding: const EdgeInsets.all(14),
