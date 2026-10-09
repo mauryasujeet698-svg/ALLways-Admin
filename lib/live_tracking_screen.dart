@@ -291,7 +291,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
               final visibleRides = rides.where((d) => _matches(d.data(), d.id, ride: true)).length;
               final visibleOrders = orders.where((d) => _matches(d.data(), d.id, ride: false)).length;
               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Matching jobs: ${visibleRides + visibleOrders} • ${visibleRides} rides • ${visibleOrders} deliveries', style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text('Matching jobs: ${visibleRides + visibleOrders} • $visibleRides rides • $visibleOrders deliveries', style: const TextStyle(fontWeight: FontWeight.w800)),
                 _section('Ride operations', rides, ride: true),
                 _section('Delivery operations', orders, ride: false),
               ]);
