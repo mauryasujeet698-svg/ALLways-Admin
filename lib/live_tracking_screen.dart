@@ -132,16 +132,17 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
     final status = _jobStatus(x);
     final partnerId = _partnerId(x, ride: ride);
     final assigned = partnerId.isNotEmpty;
+    final isActive = (ride ? _activeRideStatuses : _activeOrderStatuses).contains(status);
     final activity = _lastActivity(x, ride: ride);
     final locationTime = _locationUpdatedAt(x, ride: ride);
     final fresh = _isFresh(locationTime);
     final lat = _number(ride ? x['driverLat'] : (x['carrierLat'] ?? x['deliveryLat']));
     final lng = _number(ride ? x['driverLng'] : (x['carrierLng'] ?? x['deliveryLng']));
     final hasValidCoords = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && lat != 0 && lng != 0;
-    final canShowLiveLocation = assigned && fresh && hasValidCoords;
+    final canShowLiveLocation = isActive && assigned && fresh && hasValidCoords;
     final created = _created(x, ride: ride);
-    final stale = assigned && (activity == null || DateTime.now().toUtc().difference(activity.toUtc()) > const Duration(minutes: 10));
-    final delayed = created != null && DateTime.now().toUtc().difference(created.toUtc()) > const Duration(minutes: 30);
+    final stale = isActive && assigned && (activity == null || DateTime.now().toUtc().difference(activity.toUtc()) > const Duration(minutes: 10));
+    final delayed = isActive && created != null && DateTime.now().toUtc().difference(created.toUtc()) > const Duration(minutes: 30);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -166,7 +167,7 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen> {
             if (created != null) _infoChip('Created ${_age(created)} ago', Icons.schedule),
             if (activity != null) _infoChip('Activity ${_age(activity)} ago', Icons.update),
           ]),
-          if (!assigned)
+          if (isActive && !assigned)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Action needed: assign a partner.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
           if (delayed)
             const Padding(padding: EdgeInsets.only(top: 8), child: Text('Potential delay: this job has been active for over 30 minutes. Review the current status.', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800))),
