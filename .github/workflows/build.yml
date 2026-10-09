@@ -86,6 +86,8 @@ jobs:
           arch: x86_64
           profile: pixel_2
           cores: 4
+          disable-linux-hw-accel: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
             adb install -r build/app/outputs/flutter-apk/app-release.apk
