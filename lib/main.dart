@@ -79,7 +79,11 @@ Future<void> setupAdminNotifications(User user) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  await GoogleSignIn.instance.initialize();
+  // Google Sign-In setup must never block the Admin app from rendering.
+  // Email/password authentication remains available if provider configuration is absent.
+  try {
+    await GoogleSignIn.instance.initialize();
+  } catch (_) {}
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const AllwaysAdminApp());
 }
