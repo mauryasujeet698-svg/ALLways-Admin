@@ -11,6 +11,7 @@ import 'update_service.dart';
 
 const adminEmail = 'mauryasujeet698@gmail.com';
 bool _adminNotificationListenerAttached = false;
+bool _adminForegroundNotificationListenerAttached = false;
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -57,14 +58,17 @@ Future<void> setupAdminNotifications(User user) async {
     }
 
     await saveToken(await FirebaseMessaging.instance.getToken());
-    FirebaseMessaging.onMessage.listen((message) {
-      HapticFeedback.vibrate();
-      SystemSound.play(SystemSoundType.alert);
-      const MethodChannel('allways_notifications').invokeMethod('showNotification', {
-        'title': message.notification?.title ?? message.data['title'] ?? 'ALLways',
-        'body': message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? 'You have a new ALLways update.',
-      }).catchError((_) => null);
-    });
+    if (!_adminForegroundNotificationListenerAttached) {
+      _adminForegroundNotificationListenerAttached = true;
+      FirebaseMessaging.onMessage.listen((message) {
+        HapticFeedback.vibrate();
+        SystemSound.play(SystemSoundType.alert);
+        const MethodChannel('allways_notifications').invokeMethod('showNotification', {
+          'title': message.notification?.title ?? message.data['title'] ?? 'ALLways',
+          'body': message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? 'You have a new ALLways update.',
+        }).catchError((_) => null);
+      });
+      }
     if (!_adminNotificationListenerAttached) {
       _adminNotificationListenerAttached = true;
       FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
