@@ -68,7 +68,7 @@ Future<void> setupAdminNotifications(User user) async {
           'body': message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? 'You have a new ALLways update.',
         }).catchError((_) => null);
       });
-      }
+    }
     if (!_adminNotificationListenerAttached) {
       _adminNotificationListenerAttached = true;
       FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
