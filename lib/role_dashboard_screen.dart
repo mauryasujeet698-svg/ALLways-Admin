@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'privacy_policy_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_workspace_screen.dart';
 import 'allways_design.dart';
@@ -147,6 +148,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     Text(admin?'Platform control center':seller?'Seller workspace':delivery?'Delivery workspace':'Rider workspace',style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
     const SizedBox(height:10),
     ..._groupedActions(),
+    Card(child:ListTile(leading:const Icon(Icons.privacy_tip_outlined),title:const Text('Privacy Policy & Terms'),subtitle:const Text('Review data use, location and account terms.'),trailing:const Icon(Icons.chevron_right),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AllwaysPrivacyPolicyScreen())))),
     const SizedBox(height:18),
     _recent(),
   ]));
