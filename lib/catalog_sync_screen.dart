@@ -128,7 +128,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
         final stock = _asNum(row['Stock']);
         final available = _asBool(row['Available'], fallback: true);
         final maxQty = _asNum(row['Max Qty'], fallback: 10);
-        final imageUrl = _asString(row['Image URL']);
+        final imageUrl = _normaliseImageUrl(_rowValue(row, const ['Image URL','imageUrl','image_url','Image Url','Product Image URL','Image Link','Image','Photo URL','photoUrl','photo']));
 
         records.add({
           'id': id,
@@ -235,6 +235,47 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  static String _normaliseColumn(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  static String _rowValue(Map<String, dynamic> row, List<String> aliases) {
+    final wanted = aliases.map(_normaliseColumn).toSet();
+    for (final entry in row.entries) {
+      if (wanted.contains(_normaliseColumn(entry.key))) {
+        final value = entry.value?.toString().trim() ?? '';
+        if (value.isNotEmpty) return value;
+      }
+    }
+    return '';
+  }
+
+  static String _normaliseImageUrl(dynamic raw) {
+    var value = raw?.toString().trim() ?? '';
+    if (value.isEmpty) return '';
+    final formula = RegExp(r'^=IMAGE\(\s*"([^"]+)"', caseSensitive: false)
+        .firstMatch(value);
+    if (formula != null) value = formula.group(1)!.trim();
+    if (value.startsWith('//')) value = 'https:$value';
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        uri.host.isEmpty ||
+        !const {'http', 'https'}.contains(uri.scheme.toLowerCase())) {
+      return '';
+    }
+    if (uri.host == 'drive.google.com' ||
+        uri.host.endsWith('.drive.google.com')) {
+      final d = uri.pathSegments.indexOf('d');
+      final id = (d >= 0 && d + 1 < uri.pathSegments.length
+              ? uri.pathSegments[d + 1]
+              : null) ??
+          uri.queryParameters['id'];
+      if (id != null && id.isNotEmpty) {
+        return 'https://drive.google.com/uc?export=view&id=${Uri.encodeComponent(id)}';
+      }
+    }
+    return value;
   }
 
   static String _asString(dynamic value, {String fallback = ''}) {
