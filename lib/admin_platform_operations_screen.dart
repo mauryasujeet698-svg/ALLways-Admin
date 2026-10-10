@@ -60,26 +60,44 @@ class _Marketing extends StatelessWidget {
   Future<void> _send(BuildContext context) async {
     final title = TextEditingController();
     final body = TextEditingController();
+    var topic = 'all_users';
     final ok = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('Send notification'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
-              TextField(controller: body, maxLines: 4, decoration: const InputDecoration(labelText: 'Message')),
-            ],
+      builder: (d) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Send notification'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: topic,
+                  decoration: const InputDecoration(labelText: 'Audience'),
+                  items: const [
+                    DropdownMenuItem(value: 'all_users', child: Text('All users')),
+                    DropdownMenuItem(value: 'carriers', child: Text('Driver Partners')),
+                    DropdownMenuItem(value: 'delivery_partners', child: Text('Delivery Partners')),
+                    DropdownMenuItem(value: 'admins', child: Text('Admins')),
+                    DropdownMenuItem(value: 'customers', child: Text('Customers')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => topic = value);
+                  },
+                ),
+                TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
+                TextField(controller: body, maxLines: 4, decoration: const InputDecoration(labelText: 'Message')),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.send_outlined),
+              label: const Text('Queue for delivery'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(d, true),
-            icon: const Icon(Icons.send_outlined),
-            label: const Text('Queue for delivery'),
-          ),
-        ],
       ),
     );
     if (ok != true || title.text.trim().isEmpty) return;
@@ -88,7 +106,7 @@ class _Marketing extends StatelessWidget {
       await FirebaseFirestore.instance.collection('announcements').add({
         'title': title.text.trim(),
         'body': body.text.trim(),
-        'topic': 'all_users',
+        'topic': topic,
         'type': 'announcement',
         'status': 'queued',
         'createdBy': adminUid,
