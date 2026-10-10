@@ -1,0 +1,89 @@
+name: ALLways Admin Notification QA Build
+
+on:
+  push:
+    branches: [fix/notification-send-status-retry]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allways-admin-notification-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa-build:
+    runs-on: self-hosted
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Locate Bash on self-hosted Windows runner
+        shell: powershell -ExecutionPolicy Bypass -NoProfile -File {0}
+        run: |
+          $candidates = @(
+            "$env:ProgramFiles\Git\bin",
+            "$env:ProgramFiles\Git\usr\bin",
+            "$env:LOCALAPPDATA\Programs\Git\bin"
+          )
+          $bashDirectory = $candidates | Where-Object { $_ -and (Test-Path (Join-Path $_ 'bash.exe')) } | Select-Object -First 1
+          if (-not $bashDirectory) {
+            Write-Error "Git Bash was not found. Install Git for Windows with Bash, then restart the GitHub Actions runner service."
+            exit 1
+          }
+          Write-Host "Using Git Bash from $bashDirectory"
+          Add-Content -Path $env:GITHUB_PATH -Value $bashDirectory
+
+      - name: Checkout notification fix
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Diagnose self-hosted Android build tools
+        shell: powershell -ExecutionPolicy Bypass -NoProfile -File {0}
+        run: |
+          Write-Host "Runner: $env:RUNNER_NAME ($env:RUNNER_OS / $env:RUNNER_ARCH)"
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          Get-Command flutter -ErrorAction Stop | Format-List Source
+          java -version
+          if ($env:ANDROID_HOME) { Write-Host "ANDROID_HOME=$env:ANDROID_HOME" }
+          elseif ($env:ANDROID_SDK_ROOT) { Write-Host "ANDROID_SDK_ROOT=$env:ANDROID_SDK_ROOT" }
+          else { Write-Host "Android SDK variables are not set; Flutter build will confirm availability." }
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit and widget tests
+        run: flutter test
+
+      - name: Build QA debug APK (does not publish a release)
+        env:
+          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+        run: flutter build apk --debug --target-platform android-arm64 --dart-define="MAPBOX_PUBLIC_TOKEN=$env:MAPBOX_PUBLIC_TOKEN"
+
+      - name: Validate APK and report size
+        shell: powershell -ExecutionPolicy Bypass -NoProfile -File {0}
+        run: |
+          $apk = Join-Path $env:GITHUB_WORKSPACE "build/app/outputs/flutter-apk/app-debug.apk"
+          if (-not (Test-Path $apk)) { throw "Expected QA APK was not created: $apk" }
+          $item = Get-Item $apk
+          if ($item.Length -le 0) { throw "QA APK exists but is empty." }
+          Write-Host ("APK size: {0:N2} MB ({1} bytes)" -f ($item.Length / 1MB), $item.Length)
+          Get-FileHash -Path $apk -Algorithm SHA256
+
+      - name: Upload QA APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allways-admin-notification-qa-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

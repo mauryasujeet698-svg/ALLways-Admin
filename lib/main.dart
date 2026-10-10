@@ -57,7 +57,6 @@ Future<void> setupAdminNotifications(User user) async {
       }, SetOptions(merge: true));
     }
 
-    await saveToken(await FirebaseMessaging.instance.getToken());
     if (!_adminForegroundNotificationListenerAttached) {
       _adminForegroundNotificationListenerAttached = true;
       FirebaseMessaging.onMessage.listen((message) {
@@ -66,14 +65,32 @@ Future<void> setupAdminNotifications(User user) async {
         const MethodChannel('allways_notifications').invokeMethod('showNotification', {
           'title': message.notification?.title ?? message.data['title'] ?? 'ALLways',
           'body': message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? 'You have a new ALLways update.',
-        }).catchError((_) => null);
+        }).catchError((Object error) {
+          debugPrint('Admin foreground notification display failed: ' + error.toString());
+        });
       });
     }
     if (!_adminNotificationListenerAttached) {
       _adminNotificationListenerAttached = true;
-      FirebaseMessaging.instance.onTokenRefresh.listen(saveToken);
+      FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+        saveToken(token).catchError((Object error, StackTrace stackTrace) {
+          debugPrint('Admin FCM token refresh write failed: ' + error.toString());
+          debugPrint(stackTrace.toString());
+        });
+      });
     }
-  } catch (_) {}
+
+    // Token registration errors must not prevent message listeners from attaching.
+    try {
+      await saveToken(await FirebaseMessaging.instance.getToken());
+    } catch (error, stackTrace) {
+      debugPrint('Admin FCM token registration failed: ' + error.toString());
+      debugPrint(stackTrace.toString());
+    }
+  } catch (error, stackTrace) {
+    debugPrint('Admin notification setup failed: ' + error.toString());
+    debugPrint(stackTrace.toString());
+  }
 }
 
 Future<void> main() async {
