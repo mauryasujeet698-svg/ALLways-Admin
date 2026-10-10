@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_workspace_screen.dart';
 import 'allways_design.dart';
+import 'account_security_screen.dart';
 
 class RoleDashboardScreen extends StatefulWidget {
   final String role;
@@ -88,6 +89,7 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
       _Action('Users & Roles',Icons.manage_accounts,'People & Access'),
       _Action('Reports & Analytics',Icons.analytics,'Analytics & Finance'),
       _Action('App Settings',Icons.settings,'System'),
+      _Action('Account & Security',Icons.security,'System'),
     ],
     'seller'=>const[
       _Action('Products',Icons.inventory_2,'Store'),_Action('Inventory',Icons.fact_check,'Store'),_Action('Shop Profile',Icons.storefront,'Store'),_Action('Orders',Icons.receipt_long,'Orders'),
@@ -116,7 +118,21 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     }finally{if(mounted)setState(()=>busyStatus=false);}
   }
 
-  void open(String feature)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RoleFeatureScreen(role:widget.role,feature:feature,user:widget.user,accent:accent))).then((_)=>_load());
+  void open(String feature) {
+    if (feature == 'Account & Security') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => AccountSecurityScreen(
+        user: widget.user,
+        role: widget.role,
+        profileCollection: seller ? 'sellers' : carrier ? 'ridePartners' : delivery ? 'deliveryPartners' : 'customers',
+        repository: 'mauryasujeet698-svg/ALLways-Admin',
+        accent: accent,
+      )));
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => RoleFeatureScreen(
+      role: widget.role, feature: feature, user: widget.user, accent: accent,
+    ))).then((_) => _load());
+  }
 
   @override Widget build(BuildContext context){
     // Carrier uses its own dedicated ride-partner application shell.
