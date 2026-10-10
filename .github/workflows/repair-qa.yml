@@ -27,10 +27,8 @@ jobs:
       - run: flutter pub get
       - name: Static analysis
         run: flutter analyze
-        continue-on-error: true
       - name: Tests
         run: flutter test
-        continue-on-error: true
       - name: Build Admin QA APK (debug, no release)
         run: flutter build apk --debug --target-platform android-arm64
       - name: Validate artifact
@@ -42,7 +40,7 @@ jobs:
           sha256sum "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: allways-admin-repair-qa-apk
+          name: allways-admin-debug-qa-only
           path: build/app/outputs/flutter-apk/*debug.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
