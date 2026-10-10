@@ -194,7 +194,7 @@ class _Marketing extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Queued means waiting for the server. A push is confirmed only when the backend updates the record to sent.',
+                'Queued means waiting for the server. Sent means FCM accepted the request; it does not guarantee Android displayed it on the device.',
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 10),
