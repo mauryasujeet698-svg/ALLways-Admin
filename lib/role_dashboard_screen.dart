@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'role_workspace_screen.dart';
 import 'allways_design.dart';
+import 'account_security_screen.dart';
 
 class RoleDashboardScreen extends StatefulWidget {
   final String role;
@@ -86,8 +88,10 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
       _Action('Customer Support',Icons.support_agent,'Communication'),
       _Action('Service Support',Icons.handyman,'Communication'),
       _Action('Users & Roles',Icons.manage_accounts,'People & Access'),
+      _Action('Privacy Requests & Grievances',Icons.privacy_tip_outlined,'People & Access'),
       _Action('Reports & Analytics',Icons.analytics,'Analytics & Finance'),
       _Action('App Settings',Icons.settings,'System'),
+      _Action('Account & Security',Icons.security,'System'),
     ],
     'seller'=>const[
       _Action('Products',Icons.inventory_2,'Store'),_Action('Inventory',Icons.fact_check,'Store'),_Action('Shop Profile',Icons.storefront,'Store'),_Action('Orders',Icons.receipt_long,'Orders'),
@@ -107,16 +111,41 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     if(!carrier&&!delivery)return;
     setState(()=>busyStatus=true);
     try{
-      final col=carrier?'ridePartners':'customers';
-      final data=carrier?{'status':value?'online':'offline','availableForRides':value,'statusUpdatedAt':FieldValue.serverTimestamp()}:{'status':value?'online':'offline','availableForDeliveries':value,'dutyStatus':value?'online':'offline','statusUpdatedAt':FieldValue.serverTimestamp()};
-      await FirebaseFirestore.instance.collection(col).doc(widget.user.uid).set(data,SetOptions(merge:true));
-      if(mounted)setState(()=>profile={...profile,...data});
+      // Shift state is server-authoritative: client writes could bypass approval,
+      // active-job checks, session creation, and stale-shift recovery.
+      final role=carrier?'carrier':'delivery_partner';
+      final callable=FirebaseFunctions.instanceFor(region:'asia-south1').httpsCallable(
+        'setPartnerShift',
+        options: HttpsCallableOptions(timeout: const Duration(seconds:15)),
+      );
+      final result=await callable.call({'role':role,'online':value});
+      final payload=result.data;
+      if(payload is! Map || payload['ok']!=true){
+        throw FirebaseFunctionsException(code:'failed-precondition',message:'The server did not confirm the shift change.');
+      }
+      final collection=carrier?'ridePartners':'deliveryPartners';
+      final snap=await FirebaseFirestore.instance.collection(collection).doc(widget.user.uid).get();
+      if(mounted)setState(()=>profile=snap.data()??profile);
     }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not update status: '+e.toString())));
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not update duty status: '+e.toString())));
     }finally{if(mounted)setState(()=>busyStatus=false);}
   }
 
-  void open(String feature)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RoleFeatureScreen(role:widget.role,feature:feature,user:widget.user,accent:accent))).then((_)=>_load());
+  void open(String feature) {
+    if (feature == 'Account & Security') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => AccountSecurityScreen(
+        user: widget.user,
+        role: widget.role,
+        profileCollection: seller ? 'sellers' : carrier ? 'ridePartners' : delivery ? 'deliveryPartners' : 'customers',
+        repository: 'mauryasujeet698-svg/ALLways-Admin',
+        accent: accent,
+      )));
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => RoleFeatureScreen(
+      role: widget.role, feature: feature, user: widget.user, accent: accent,
+    ))).then((_) => _load());
+  }
 
   @override Widget build(BuildContext context){
     // Carrier uses its own dedicated ride-partner application shell.
