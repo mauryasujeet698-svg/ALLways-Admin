@@ -11,7 +11,7 @@ class _AdminPlatformOperationsScreenState extends State<AdminPlatformOperationsS
   @override void initState(){super.initState();module=widget.module;}
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:Text(module)),
-    body:module=='Customers'?const _Customers():module=='Service Areas'?_Areas(widget.accent,widget.adminUid):module=='Marketing'?_Marketing(widget.accent,widget.adminUid):module=='Finance'?_Finance():module=='Business Purchases'?_Purchases(widget.accent,widget.adminUid):_GlobalSearch(widget.accent),
+    body:module=='Customers'?const _Customers():module=='Service Areas'?_Areas(widget.accent,widget.adminUid):module=='Marketing'?_Marketing(widget.accent,widget.adminUid):module=='Finance'?_Finance():module=='Business Purchases'?_Purchases(widget.accent,widget.adminUid):module=='Privacy Requests & Grievances'?_PrivacyRequests(widget.accent,widget.adminUid):_GlobalSearch(widget.accent),
   );
 }
 
@@ -118,4 +118,152 @@ class _GlobalSearchState extends State<_GlobalSearch>{
       },
     );
   }
+}
+
+class _PrivacyRequests extends StatelessWidget {
+  final Color accent;
+  final String adminUid;
+  const _PrivacyRequests(this.accent, this.adminUid);
+
+  Future<void> _setStatus(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    String status,
+  ) async {
+    try {
+      await doc.reference.update({
+        'status': status,
+        'reviewedBy': adminUid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Request marked $status.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update privacy request: $error')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('privacyRequests')
+            .limit(300)
+            .snapshots(),
+        builder: (context, snap) {
+          if (snap.hasError) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Could not load privacy requests. Verify Admin access and Firestore rules.'),
+              ),
+            );
+          }
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final docs = snap.data!.docs.toList()
+            ..sort((a, b) {
+              final av = a.data()['createdAt'];
+              final bv = b.data()['createdAt'];
+              final ad = av is Timestamp ? av.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+              final bd = bv is Timestamp ? bv.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+              return bd.compareTo(ad);
+            });
+
+          final unresolved = docs.where((doc) {
+            final status = (doc.data()['status'] ?? 'submitted').toString().toLowerCase();
+            return status != 'resolved' && status != 'rejected';
+          }).length;
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Privacy requests: ${docs.length}',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              Text('$unresolved pending review',
+                  style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              if (docs.isEmpty)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('No privacy or grievance requests have been submitted.'),
+                  ),
+                ),
+              ...docs.map((doc) {
+                final data = doc.data();
+                final uid = (data['uid'] ?? 'Unknown user').toString();
+                final type = (data['requestType'] ?? 'grievance').toString();
+                final status = (data['status'] ?? 'submitted').toString().toLowerCase();
+                final details = (data['details'] ?? '').toString();
+                final role = (data['role'] ?? 'unknown').toString();
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(type.replaceAll('_', ' ').toUpperCase(),
+                                  style: const TextStyle(fontWeight: FontWeight.w900)),
+                            ),
+                            Chip(label: Text(status.replaceAll('_', ' '))),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Role: $role • UID: $uid',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        if ((data['email'] ?? '').toString().isNotEmpty)
+                          Text((data['email']).toString(),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(height: 10),
+                        SelectableText(details.isEmpty ? 'No details provided.' : details),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton(
+                              onPressed: status == 'in_review'
+                                  ? null
+                                  : () => _setStatus(context, doc, 'in_review'),
+                              child: const Text('Mark in review'),
+                            ),
+                            FilledButton(
+                              onPressed: status == 'resolved'
+                                  ? null
+                                  : () => _setStatus(context, doc, 'resolved'),
+                              child: const Text('Resolve'),
+                            ),
+                            TextButton(
+                              onPressed: status == 'rejected'
+                                  ? null
+                                  : () => _setStatus(context, doc, 'rejected'),
+                              child: const Text('Reject'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      );
 }
