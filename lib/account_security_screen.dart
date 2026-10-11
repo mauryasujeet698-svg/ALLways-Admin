@@ -94,13 +94,14 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
     if (confirmed != true || !mounted) return;
     setState(() => _requestingDeletion = true);
     try {
-      await FirebaseFirestore.instance.collection('accountDeletionRequests').add({
+      await FirebaseFirestore.instance.collection('privacyRequests').add({
         'uid': widget.user.uid,
         'email': widget.user.email ?? '',
         'role': widget.role,
-        'profileCollection': widget.profileCollection,
-        'status': 'requested',
-        'requestedAt': FieldValue.serverTimestamp(),
+        'requestType': 'erasure',
+        'details': 'Account deletion requested from the ALLways ${widget.role} app. Profile collection: ${widget.profileCollection}. Please verify identity, active jobs and applicable retention requirements before processing.',
+        'status': 'submitted',
+        'createdAt': FieldValue.serverTimestamp(),
         'source': 'android_app',
       });
       if (mounted) {
