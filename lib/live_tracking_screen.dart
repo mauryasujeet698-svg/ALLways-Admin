@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-const _mapboxPublicToken = String.fromEnvironment('MAPBOX_PUBLIC_TOKEN');
-String _mapboxTiles() => 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}?access_token=' + _mapboxPublicToken;
+const _openStreetMapTiles = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
 class AdminLiveTrackingScreen extends StatelessWidget {
   final Color accent;
@@ -150,7 +149,7 @@ class AdminMapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final points = [partner, if (customer != null) customer!];
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Mapbox Tracking')),
+      appBar: AppBar(title: const Text('Live Tracking')),
       body: FlutterMap(
         options: MapOptions(
           initialCenter: partner,
@@ -163,13 +162,14 @@ class AdminMapPage extends StatelessWidget {
         ),
         children: [
           TileLayer(
-            urlTemplate: _mapboxTiles(),
+            urlTemplate: _openStreetMapTiles,
             tileSize: 256,
             maxZoom: 19,
             userAgentPackageName: 'com.allways.admin',
           ),
           RichAttributionWidget(attributions: const [
-            TextSourceAttribution('© Mapbox © OpenStreetMap'),
+            TextSourceAttribution('© OpenStreetMap contributors'),
+            TextSourceAttribution('© CARTO'),
           ]),
           MarkerLayer(markers: [
             Marker(
