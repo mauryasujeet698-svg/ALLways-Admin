@@ -1,0 +1,86 @@
+name: ALLways Admin Account Security QA
+
+on:
+  push:
+    branches: [feature/account-security-privacy-updates]
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "test/**"
+      - ".github/workflows/account-security-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allways-admin-security-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout account security changes
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Bound Gradle memory for hosted runner
+        shell: bash
+        run: |
+          if grep -q '^org.gradle.jvmargs=' android/gradle.properties; then
+            sed -i 's|^org.gradle.jvmargs=.*|org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError|' android/gradle.properties
+          else
+            echo 'org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError' >> android/gradle.properties
+          fi
+          grep -q '^org.gradle.workers.max=' android/gradle.properties || echo 'org.gradle.workers.max=2' >> android/gradle.properties
+          grep -q '^org.gradle.parallel=' android/gradle.properties || echo 'org.gradle.parallel=false' >> android/gradle.properties
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit and widget tests
+        run: flutter test
+
+      - name: Build optimized ARM64 release candidate
+        run: flutter build apk --release --target-platform android-arm64 --shrink --obfuscate --split-debug-info=build/symbols
+
+      - name: Enforce strict under-25 MB APK limit and record checksum
+        shell: bash
+        run: |
+          apk="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$apk"
+          size=$(stat -c%s "$apk")
+          mb=$(awk -v bytes="$size" 'BEGIN {printf "%.2f", bytes/1000000}')
+          echo "Release candidate APK size: ${mb} MB (${size} bytes)"
+          if [ "$size" -ge 25000000 ]; then
+            echo "::error::APK must be below 25,000,000 bytes; refusing to distribute this candidate."
+            exit 1
+          fi
+          sha256sum "$apk"
+
+      - name: Upload QA-only APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allways-admin-account-security-qa-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
