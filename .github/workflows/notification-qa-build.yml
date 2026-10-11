@@ -1,0 +1,81 @@
+name: ALLways Admin Notification QA Build
+
+on:
+  push:
+    branches: [fix/notification-send-status-retry]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allways-admin-notification-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout notification fix
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Bound Gradle memory for hosted runner
+        shell: bash
+        run: |
+          if grep -q '^org.gradle.jvmargs=' android/gradle.properties; then
+            sed -i 's|^org.gradle.jvmargs=.*|org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError|' android/gradle.properties
+          else
+            echo 'org.gradle.jvmargs=-Xmx3G -XX:MaxMetaspaceSize=1G -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError' >> android/gradle.properties
+          fi
+          grep -q '^org.gradle.workers.max=' android/gradle.properties || echo 'org.gradle.workers.max=2' >> android/gradle.properties
+          grep -q '^org.gradle.parallel=' android/gradle.properties || echo 'org.gradle.parallel=false' >> android/gradle.properties
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit and widget tests
+        run: flutter test
+
+      - name: Build optimized ARM64 release APK
+        env:
+          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+        run: flutter build apk --release --target-platform android-arm64 --shrink --dart-define=MAPBOX_PUBLIC_TOKEN="${MAPBOX_PUBLIC_TOKEN:-}"
+
+      - name: Enforce 25 MiB APK maximum and record checksum
+        shell: bash
+        run: |
+          apk="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$apk"
+          size=$(stat -c%s "$apk")
+          max_size=$((25 * 1024 * 1024))
+          mb=$(awk -v bytes="$size" 'BEGIN {printf "%.2f", bytes/1024/1024}')
+          echo "Release APK size: ${mb} MiB (${size} bytes)"
+          if [ "$size" -gt "$max_size" ]; then
+            echo "::error::APK exceeds the hard 25 MiB maximum by $((size - max_size)) bytes. Do not distribute this build."
+            exit 1
+          fi
+          sha256sum "$apk"
+
+      - name: Upload release candidate APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allways-admin-release-candidate-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7

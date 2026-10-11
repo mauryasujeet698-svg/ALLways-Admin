@@ -52,19 +52,217 @@ class _Areas extends StatelessWidget{
   });
 }
 
-class _Marketing extends StatelessWidget{
-  final Color accent;final String adminUid;const _Marketing(this.accent,this.adminUid);
-  Future<void> _send(BuildContext context)async{
-    final title=TextEditingController(),body=TextEditingController();
-    final ok=await showDialog<bool>(context:context,builder:(d)=>AlertDialog(title:const Text('Create announcement'),content:SingleChildScrollView(child:Column(children:[TextField(controller:title,decoration:const InputDecoration(labelText:'Title')),TextField(controller:body,maxLines:4,decoration:const InputDecoration(labelText:'Message'))])),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Send'))]));
-    if(ok==true&&title.text.trim().isNotEmpty)await FirebaseFirestore.instance.collection('announcements').add({'title':title.text.trim(),'body':body.text.trim(),'topic':'all_users','status':'pending','createdBy':adminUid,'createdAt':FieldValue.serverTimestamp()});
+class _Marketing extends StatelessWidget {
+  final Color accent;
+  final String adminUid;
+  const _Marketing(this.accent, this.adminUid);
+
+  Future<void> _send(BuildContext context) async {
+    final title = TextEditingController();
+    final body = TextEditingController();
+    var topic = 'all_users';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Send notification'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: topic,
+                  decoration: const InputDecoration(labelText: 'Audience'),
+                  items: const [
+                    DropdownMenuItem(value: 'all_users', child: Text('All users')),
+                    DropdownMenuItem(value: 'carriers', child: Text('Driver Partners')),
+                    DropdownMenuItem(value: 'delivery_partners', child: Text('Delivery Partners')),
+                    DropdownMenuItem(value: 'admins', child: Text('Admins')),
+                    DropdownMenuItem(value: 'customers', child: Text('Customers')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => topic = value);
+                  },
+                ),
+                TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
+                TextField(controller: body, maxLines: 4, decoration: const InputDecoration(labelText: 'Message')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.send_outlined),
+              label: const Text('Queue for delivery'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || title.text.trim().isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('announcements').add({
+        'title': title.text.trim(),
+        'body': body.text.trim(),
+        'topic': topic,
+        'type': 'announcement',
+        'status': 'queued',
+        'createdBy': adminUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Notification queued. Delivery is not confirmed until its status becomes sent.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not queue notification: ' + error.toString())),
+        );
+      }
+    } finally {
+      title.dispose();
+      body.dispose();
+    }
   }
-  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('announcements').limit(50).snapshots(),builder:(c,s){
-    if(!s.hasData)return const Center(child:CircularProgressIndicator());
-    return ListView(padding:const EdgeInsets.all(16),children:[Row(children:[const Expanded(child:Text('Marketing & Messaging',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>_send(context),icon:const Icon(Icons.campaign),label:const Text('New'))]),const SizedBox(height:10),
-      ...s.data!.docs.map((d){final x=d.data();return Card(child:ListTile(title:Text((x['title']??'Announcement').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((x['body']??'').toString()),trailing:Text((x['status']??'pending').toString())));})
-    ]);
-  });
+
+  Future<void> _retry(BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) async {
+    final original = doc.data();
+    final status = (original['status'] ?? 'queued').toString().toLowerCase();
+    if (status == 'sent') return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Retry notification?'),
+        content: const Text('This creates a new delivery attempt. If the previous attempt was actually delivered but its status was not updated, recipients could receive the message twice.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(d, true),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Create retry'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('announcements').add({
+        'title': (original['title'] ?? 'ALLways').toString(),
+        'body': (original['body'] ?? '').toString(),
+        'topic': (original['topic'] ?? original['targetAudience'] ?? 'all_users').toString(),
+        'type': (original['type'] ?? 'announcement').toString(),
+        'status': 'queued',
+        'createdBy': adminUid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'retryOf': doc.id,
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A new attempt was queued. Wait for backend confirmation before retrying again.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not queue retry: ' + error.toString())),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('announcements').limit(50).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Could not load notifications: ' + snapshot.error.toString()));
+          }
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+          final docs = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final av = a.data()['createdAt'];
+              final bv = b.data()['createdAt'];
+              final at = av is Timestamp ? av.millisecondsSinceEpoch : 0;
+              final bt = bv is Timestamp ? bv.millisecondsSinceEpoch : 0;
+              return bt.compareTo(at);
+            });
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Marketing & Messaging', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => _send(context),
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Send notification'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Queued means waiting for the server. Sent means FCM accepted the request; it does not guarantee Android displayed it on the device.',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              if (docs.isEmpty) const Text('No notifications yet.'),
+              ...docs.map((doc) {
+                final data = doc.data();
+                final status = (data['status'] ?? 'queued').toString();
+                final normalized = status.toLowerCase();
+                final sent = normalized == 'sent';
+                final failed = normalized == 'failed';
+                final statusColor = sent ? Colors.green : failed ? Colors.red : Colors.orange;
+                final error = (data['error'] ?? '').toString();
+                return Card(
+                  child: ListTile(
+                    isThreeLine: error.isNotEmpty,
+                    title: Text((data['title'] ?? 'Announcement').toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text((data['body'] ?? '').toString()),
+                        const SizedBox(height: 4),
+                        Text(error.isEmpty ? 'Status: ' + status : 'Status: ' + status + ' • ' + error,
+                          style: TextStyle(color: failed ? Colors.red : Colors.grey.shade700)),
+                      ],
+                    ),
+                    trailing: SizedBox(
+                      width: 105,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.w800, fontSize: 11)),
+                          if (!sent)
+                            IconButton(
+                              tooltip: 'Retry delivery',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _retry(context, doc),
+                              icon: const Icon(Icons.refresh),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      );
 }
 
 class _Finance extends StatelessWidget{
