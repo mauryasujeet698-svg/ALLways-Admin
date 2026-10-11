@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-const _openStreetMapTiles = 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const _openStreetMapTiles = String.fromEnvironment(
+  'MAP_TILE_URL',
+  defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+);
 
 class AdminLiveTrackingScreen extends StatelessWidget {
   final Color accent;
@@ -169,7 +172,7 @@ class AdminMapPage extends StatelessWidget {
           ),
           RichAttributionWidget(attributions: const [
             TextSourceAttribution('© OpenStreetMap contributors'),
-            TextSourceAttribution('© CARTO'),
+            
           ]),
           MarkerLayer(markers: [
             Marker(
