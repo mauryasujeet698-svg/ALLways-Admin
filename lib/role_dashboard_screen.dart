@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -110,12 +111,23 @@ class _RoleDashboardScreenState extends State<RoleDashboardScreen>{
     if(!carrier&&!delivery)return;
     setState(()=>busyStatus=true);
     try{
-      final col=carrier?'ridePartners':'customers';
-      final data=carrier?{'status':value?'online':'offline','availableForRides':value,'statusUpdatedAt':FieldValue.serverTimestamp()}:{'status':value?'online':'offline','availableForDeliveries':value,'dutyStatus':value?'online':'offline','statusUpdatedAt':FieldValue.serverTimestamp()};
-      await FirebaseFirestore.instance.collection(col).doc(widget.user.uid).set(data,SetOptions(merge:true));
-      if(mounted)setState(()=>profile={...profile,...data});
+      // Shift state is server-authoritative: client writes could bypass approval,
+      // active-job checks, session creation, and stale-shift recovery.
+      final role=carrier?'carrier':'delivery_partner';
+      final callable=FirebaseFunctions.instanceFor(region:'asia-south1').httpsCallable(
+        'setPartnerShift',
+        options: HttpsCallableOptions(timeout: const Duration(seconds:15)),
+      );
+      final result=await callable.call({'role':role,'online':value});
+      final payload=result.data;
+      if(payload is! Map || payload['ok']!=true){
+        throw FirebaseFunctionsException(code:'failed-precondition',message:'The server did not confirm the shift change.');
+      }
+      final collection=carrier?'ridePartners':'deliveryPartners';
+      final snap=await FirebaseFirestore.instance.collection(collection).doc(widget.user.uid).get();
+      if(mounted)setState(()=>profile=snap.data()??profile);
     }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not update status: '+e.toString())));
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not update duty status: '+e.toString())));
     }finally{if(mounted)setState(()=>busyStatus=false);}
   }
 
