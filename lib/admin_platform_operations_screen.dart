@@ -193,6 +193,15 @@ class _PrivacyRequests extends StatelessWidget {
               Text('$unresolved pending review',
                   style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'Review status changes do not execute account deletion. For an erasure request, verify the requester, resolve active jobs and legally required records, and complete the approved account/data removal procedure before marking the request resolved.',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               if (docs.isEmpty)
                 const Card(
                   child: Padding(
