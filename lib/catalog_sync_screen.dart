@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,6 +19,8 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
   final TextEditingController _endpointController = TextEditingController();
   static const String _defaultEndpoint = _endpoint;
   bool _busy = false;
+  bool _privacyMigrationBusy = false;
+  String? _privacyMigrationStatus;
   int _productCount = 0;
   int _inventoryCount = 0;
   String? _lastSyncText;
@@ -62,6 +65,57 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
         setState(() => _endpointController.text = configured);
       }
     } catch (_) {}
+  }
+
+  Future<void> _migrateVehicleContactPrivacy() async {
+    if (_privacyMigrationBusy) return;
+    setState(() {
+      _privacyMigrationBusy = true;
+      _privacyMigrationStatus = 'Securing existing vehicle owner contact numbers…';
+    });
+    var cursor = '';
+    var total = 0;
+    try {
+      while (true) {
+        final result = await FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable(
+              'migrateVehicleContactPrivacy',
+              options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+            )
+            .call(<String, dynamic>{'cursor': cursor});
+        final payload = result.data;
+        if (payload is! Map || payload['ok'] != true) {
+          throw Exception('The server did not confirm completion of the privacy migration.');
+        }
+        final migrated = payload['migrated'];
+        if (migrated is num) total += migrated.toInt();
+        cursor = (payload['nextCursor'] ?? cursor).toString();
+        final done = payload['done'] == true;
+        if (mounted) {
+          setState(() => _privacyMigrationStatus =
+              done
+                  ? 'Completed: secured $total existing vehicle contact record(s).'
+                  : 'Secured $total contact record(s); continuing…');
+        }
+        if (done) break;
+        if (cursor.isEmpty) throw Exception('Migration cursor was empty before completion.');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vehicle contact privacy migration completed: $total record(s).')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _privacyMigrationStatus =
+            'Migration stopped after $total record(s): ${e.toString().replaceFirst('Exception: ', '')}. Tap Run migration again to continue.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vehicle contact migration stopped: ${e.toString().replaceFirst('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _privacyMigrationBusy = false);
+    }
   }
 
   Future<void> _syncCatalog() async {
@@ -130,12 +184,14 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
         final maxQty = _asNum(row['Max Qty'], fallback: 10);
         final imageUrl = _normaliseImageUrl(_rowValue(row, const ['Image URL','imageUrl','image_url','Image Url','Product Image URL','Image Link','Image','Photo URL','photoUrl','photo']));
         final description = _rowValue(row, const ['Description','Product Description','Product Details','Details']);
+        final imageVersion = _rowValue(row, const ['Image Version','Image Updated At','imageVersion','image_version']);
 
         records.add({
           'id': id,
           'name': name,
           'title': name,
           'description': description,
+          'imageVersion': imageVersion,
           'category': category,
           'emoji': emoji,
           'price': price,
@@ -181,6 +237,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
               'productId': id,
               'name': product['name'],
               'description': product['description'],
+              'imageVersion': product['imageVersion'],
               'category': product['category'],
               'stock': product['stock'],
               'available': product['available'],
@@ -399,7 +456,36 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Google Apps Script /exec URL', style: TextStyle(fontWeight: FontWeight.w800)),
+                  Card(
+          color: const Color(0xFFFFF4E5),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Vehicle contact privacy', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const SizedBox(height: 5),
+                const Text('Move owner phone numbers out of publicly readable vehicle listings. Run after the updated backend functions and Firestore rules have been deployed. The operation is resumable.'),
+                if (_privacyMigrationStatus != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_privacyMigrationStatus!),
+                ],
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _privacyMigrationBusy ? null : _migrateVehicleContactPrivacy,
+                    icon: _privacyMigrationBusy
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.lock_outline),
+                    label: Text(_privacyMigrationBusy ? 'Securing contact records…' : 'Run vehicle contact privacy migration'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Text('Google Apps Script /exec URL', style: TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _endpointController,
