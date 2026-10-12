@@ -129,11 +129,13 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
         final available = _asBool(row['Available'], fallback: true);
         final maxQty = _asNum(row['Max Qty'], fallback: 10);
         final imageUrl = _normaliseImageUrl(_rowValue(row, const ['Image URL','imageUrl','image_url','Image Url','Product Image URL','Image Link','Image','Photo URL','photoUrl','photo']));
+        final description = _rowValue(row, const ['Description','Product Description','Product Details','Details']);
 
         records.add({
           'id': id,
           'name': name,
           'title': name,
+          'description': description,
           'category': category,
           'emoji': emoji,
           'price': price,
@@ -178,6 +180,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
               'id': id,
               'productId': id,
               'name': product['name'],
+              'description': product['description'],
               'category': product['category'],
               'stock': product['stock'],
               'available': product['available'],
