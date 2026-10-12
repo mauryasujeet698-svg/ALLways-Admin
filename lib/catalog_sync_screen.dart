@@ -71,7 +71,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
     if (_privacyMigrationBusy) return;
     setState(() {
       _privacyMigrationBusy = true;
-      _privacyMigrationStatus = 'Securing existing vehicle owner contact numbers…';
+      _privacyMigrationStatus = 'Securing vehicle contact numbers and precise location data…';
     });
     var cursor = '';
     var total = 0;
@@ -95,14 +95,14 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
           setState(() => _privacyMigrationStatus =
               done
                   ? 'Completed: secured $total existing vehicle contact record(s).'
-                  : 'Secured $total contact record(s); continuing…');
+                  : 'Secured $total vehicle listing(s); continuing…');
         }
         if (done) break;
         if (cursor.isEmpty) throw Exception('Migration cursor was empty before completion.');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vehicle contact privacy migration completed: $total record(s).')),
+          SnackBar(content: Text('Vehicle contact privacy migration completed: $total vehicle listing(s).')),
         );
       }
     } catch (e) {
@@ -465,7 +465,7 @@ class _CatalogSyncScreenState extends State<CatalogSyncScreen> {
               children: [
                 const Text('Vehicle contact privacy', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
                 const SizedBox(height: 5),
-                const Text('Move owner phone numbers out of publicly readable vehicle listings. Run after the updated backend functions and Firestore rules have been deployed. The operation is resumable.'),
+                const Text('Move owner phone numbers and precise GPS coordinates out of publicly readable vehicle listings. Run after the updated backend functions and Firestore rules have been deployed. The operation is resumable.'),
                 if (_privacyMigrationStatus != null) ...[
                   const SizedBox(height: 8),
                   Text(_privacyMigrationStatus!),
