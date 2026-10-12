@@ -144,7 +144,6 @@ jobs:
                 installed=1
                 break
               fi
-              # Let the Android package manager settle after emulator cold boot.
               sleep 10
             done
             if [ "$installed" != "1" ]; then
@@ -172,6 +171,7 @@ jobs:
               exit 1
             fi
             echo "allways-admin release-mode launch check passed."
+
       - name: Prepare release assets
         shell: bash
         run: |
