@@ -1,7 +1,7 @@
 name: allways_admin
 description: Dedicated ALLways Admin application.
 publish_to: "none"
-version: 1.0.7+8
+version: 1.0.8+9
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -14,6 +14,7 @@ dependencies:
   firebase_auth: ^5.6.2
   google_sign_in: ^7.1.1
   cloud_firestore: ^5.6.12
+  cloud_functions: ^5.6.2
   firebase_messaging: ^15.2.10
   geolocator: ^14.0.2
   image_picker: ^1.1.2
