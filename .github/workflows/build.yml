@@ -178,7 +178,7 @@ jobs:
           set -euo pipefail
           cp "release-assets/allways-admin-v${{ env.APP_VERSION }}.apk" "release-assets/allways-admin-latest.apk"
       - name: Publish latest APK release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: allways-latest
           name: "ALLways Admin v${{ env.APP_VERSION }}"
