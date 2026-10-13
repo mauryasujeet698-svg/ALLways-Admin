@@ -7,7 +7,18 @@ on:
       - "android/**"
       - "pubspec.yaml"
       - ".github/workflows/repair-qa.yml"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "android/**"
+      - "pubspec.yaml"
+      - "test/**"
+      - ".github/workflows/**"
   workflow_dispatch:
+concurrency:
+  group: allways-admin-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 jobs:
