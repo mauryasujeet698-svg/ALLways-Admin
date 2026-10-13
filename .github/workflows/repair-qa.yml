@@ -8,6 +8,10 @@ on:
       - "pubspec.yaml"
       - ".github/workflows/repair-qa.yml"
   workflow_dispatch:
+concurrency:
+  group: allways-admin-qa-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 jobs:
